@@ -59,6 +59,51 @@ PY
 autoload -Uz add-zsh-hook
 add-zsh-hook preexec __kurt_preexec
 add-zsh-hook precmd __kurt_precmd
+
+# --- Inline suggestions (kurt suggest) ---
+# Requires: zsh line editor (ZLE). Shows hint as faint inline text.
+# Accept with Right Arrow.
+
+# Enable/disable
+: ${KURT_SUGGEST:=1}
+
+function __kurt_suggest_update() {
+  if [[ "$KURT_SUGGEST" != "1" ]]; then
+    POSTDISPLAY=""
+    return
+  fi
+  # Only suggest when cursor is at end (simple, avoids complex editing cases)
+  if (( CURSOR != ${#BUFFER} )); then
+    POSTDISPLAY=""
+    return
+  fi
+  local s=$(kurt suggest --buffer "$BUFFER" --cwd "$PWD" 2>/dev/null)
+  if [[ -n "$s" ]]; then
+    # faint gray
+    POSTDISPLAY=$'%F{244}'"$s"$'%f'
+  else
+    POSTDISPLAY=""
+  fi
+}
+
+function __kurt_accept_suggest() {
+  if [[ -n "$POSTDISPLAY" ]]; then
+    # strip color codes by re-running suggest (plain) for accurate append
+    local s=$(kurt suggest --buffer "$BUFFER" --cwd "$PWD" 2>/dev/null)
+    BUFFER+="$s"
+    CURSOR=${#BUFFER}
+    POSTDISPLAY=""
+    zle redisplay
+  else
+    zle forward-char
+  fi
+}
+
+# Hook updates during redraw
+zle -N zle-line-pre-redraw __kurt_suggest_update
+# Bind right arrow
+zle -N __kurt_accept_suggest __kurt_accept_suggest
+bindkey '^[[C' __kurt_accept_suggest
 `)
 		},
 	}
