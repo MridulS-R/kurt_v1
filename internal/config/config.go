@@ -44,9 +44,16 @@ import (
 type Config struct {
 	Style     string       `toml:"style"`
 	Prompt    Prompt       `toml:"prompt"`
+	RPrompt   RPromptCfg   `toml:"rprompt"`
 	Modules   Modules      `toml:"modules"`
 	Module    ModuleOpts   `toml:"module"`
 	Powerline PowerlineCfg `toml:"powerline"`
+}
+
+type RPromptCfg struct {
+	Enabled    *bool  `toml:"enabled"`
+	ShowTime   *bool  `toml:"show_time"`
+	TimeFormat string `toml:"time_format"`
 }
 
 type PowerlineCfg struct {
@@ -99,8 +106,13 @@ func Default() Config {
 	bg160 := 160
 
 	return Config{
-		Style:   "minimal",
-		Prompt:  Prompt{TwoLine: true},
+		Style:  "minimal",
+		Prompt: Prompt{TwoLine: true},
+		RPrompt: RPromptCfg{
+			Enabled:    &bTrue,
+			ShowTime:   &bTrue,
+			TimeFormat: "15:04",
+		},
 		Modules: Modules{Order: []string{"dir", "git", "duration", "exit"}},
 		Module: ModuleOpts{
 			Dir:      BasicModule{Enabled: &bTrue},
@@ -168,6 +180,17 @@ func MergeDefaults(user Config) Config {
 	}
 	if out.Modules.Order == nil || len(out.Modules.Order) == 0 {
 		out.Modules.Order = def.Modules.Order
+	}
+
+	// RPrompt defaults
+	if out.RPrompt.Enabled == nil {
+		out.RPrompt.Enabled = def.RPrompt.Enabled
+	}
+	if out.RPrompt.ShowTime == nil {
+		out.RPrompt.ShowTime = def.RPrompt.ShowTime
+	}
+	if strings.TrimSpace(out.RPrompt.TimeFormat) == "" {
+		out.RPrompt.TimeFormat = def.RPrompt.TimeFormat
 	}
 
 	// Module enabled flags default to true

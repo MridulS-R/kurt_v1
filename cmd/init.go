@@ -51,9 +51,13 @@ PY
   export __KURT_LAST_EXIT=$exit_code
   export __KURT_LAST_DURATION_MS=$dur_ms
 
-  # Two-line prompt: first line context, second line input
+  # Prompt: first line context, second line input
   local p=$(kurt prompt --shell zsh --cwd "$PWD" --status $exit_code --duration-ms $dur_ms)
   PROMPT="$p"
+
+  # Right prompt (optional, controlled by config)
+  local rp=$(kurt rprompt --shell zsh --cwd "$PWD" --status $exit_code --duration-ms $dur_ms 2>/dev/null)
+  RPROMPT="$rp"
 }
 
 autoload -Uz add-zsh-hook

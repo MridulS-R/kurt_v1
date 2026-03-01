@@ -25,6 +25,15 @@ bg = 160
 # true = two-line prompt, false = one-line prompt
 two_line = true
 
+[rprompt]
+# zsh RPROMPT (right side)
+enabled = true
+show_time = true
+# Go time format: https://pkg.go.dev/time#Time.Format
+# 15:04 = 24h hours:minutes
+# 03:04 PM = 12h time
+time_format = "15:04"
+
 [modules]
 # Module order (unknown names are ignored)
 order = ["dir", "git", "duration", "exit"]

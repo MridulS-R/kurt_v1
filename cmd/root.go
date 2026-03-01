@@ -15,6 +15,7 @@ func Execute() {
 	}
 
 	root.AddCommand(promptCmd())
+	root.AddCommand(rpromptCmd())
 	root.AddCommand(initCmd())
 	root.AddCommand(suggestCmd())
 	root.AddCommand(thinkCmd())

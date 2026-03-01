@@ -11,6 +11,11 @@ type ConfigView struct {
 	TwoLine bool
 	Order   []string
 
+	// Right prompt (zsh RPROMPT)
+	RPromptEnabled    bool
+	RPromptShowTime   bool
+	RPromptTimeFormat string
+
 	EnableDir      bool
 	EnableGit      bool
 	EnableDuration bool
