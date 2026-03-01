@@ -16,6 +16,7 @@ func Execute() {
 
 	root.AddCommand(promptCmd())
 	root.AddCommand(initCmd())
+	root.AddCommand(thinkCmd())
 	root.AddCommand(explainCmd())
 
 	if err := root.Execute(); err != nil {

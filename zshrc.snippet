@@ -5,11 +5,13 @@
 # export PATH="$HOME/.local/bin:$PATH"
 
 function __kurt_preexec() {
+  # Zsh passes the full command line as $1
   export __KURT_CMD_START_MS=$(python3 - <<'PY'
 import time
 print(int(time.time()*1000))
 PY
 )
+  export __KURT_LAST_CMD="$1"
 }
 
 function __kurt_precmd() {
@@ -21,6 +23,9 @@ PY
 )
   local start_ms=${__KURT_CMD_START_MS:-$now_ms}
   local dur_ms=$(( now_ms - start_ms ))
+
+  export __KURT_LAST_EXIT=$exit_code
+  export __KURT_LAST_DURATION_MS=$dur_ms
 
   # Two-line prompt: first line context, second line input
   local p=$(kurt prompt --shell zsh --cwd "$PWD" --status $exit_code --duration-ms $dur_ms)
