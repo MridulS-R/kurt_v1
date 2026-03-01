@@ -26,6 +26,10 @@ type RenderRightInfo struct {
 func RenderRight(a RenderRightArgs) (string, RenderRightInfo, error) {
 	info := RenderRightInfo{Modules: []string{}}
 
+	if !a.Config.RPromptEnabled {
+		return "", info, nil
+	}
+
 	parts := []string{}
 
 	// duration (reuse module logic)
