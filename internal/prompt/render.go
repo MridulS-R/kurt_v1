@@ -31,6 +31,7 @@ func Render(a RenderArgs) (string, RenderInfo, error) {
 		StatusCode:    a.StatusCode,
 		DurationMs:    a.DurationMs,
 		DurationMinMs: a.Config.DurationMinMs,
+		GitTTLms:      a.Config.GitTTLms,
 		NoColor:       a.NoColor,
 	}
 

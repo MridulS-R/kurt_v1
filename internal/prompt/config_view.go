@@ -11,6 +11,9 @@ type ConfigView struct {
 	TwoLine bool
 	Order   []string
 
+	// Performance knobs
+	GitTTLms int64
+
 	// Right prompt (zsh RPROMPT)
 	RPromptEnabled    bool
 	RPromptShowTime   bool

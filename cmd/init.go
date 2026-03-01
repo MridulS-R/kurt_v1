@@ -22,7 +22,7 @@ func initZshCmd() *cobra.Command {
 		Short: "Print zsh snippet for precmd/preexec hooks",
 		Run: func(cmd *cobra.Command, args []string) {
 			// Keep it copy/paste friendly.
-			fmt.Print(`# kurt_v1 (kurt) prompt init
+			fmt.Printf("%s", `# kurt_v1 (kurt) prompt init
 # Add this to your ~/.zshrc
 
 # Path to kurt binary (adjust if needed)

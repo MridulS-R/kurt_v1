@@ -45,9 +45,14 @@ type Config struct {
 	Style     string       `toml:"style"`
 	Prompt    Prompt       `toml:"prompt"`
 	RPrompt   RPromptCfg   `toml:"rprompt"`
+	Perf      PerfCfg      `toml:"perf"`
 	Modules   Modules      `toml:"modules"`
 	Module    ModuleOpts   `toml:"module"`
 	Powerline PowerlineCfg `toml:"powerline"`
+}
+
+type PerfCfg struct {
+	GitTTLms int64 `toml:"git_ttl_ms"`
 }
 
 type RPromptCfg struct {
@@ -113,6 +118,7 @@ func Default() Config {
 			ShowTime:   &bTrue,
 			TimeFormat: "15:04",
 		},
+		Perf:    PerfCfg{GitTTLms: 1000},
 		Modules: Modules{Order: []string{"dir", "git", "duration", "exit"}},
 		Module: ModuleOpts{
 			Dir:      BasicModule{Enabled: &bTrue},
@@ -209,6 +215,11 @@ func MergeDefaults(user Config) Config {
 	}
 	if out.Module.Duration.MinMs == nil {
 		out.Module.Duration.MinMs = def.Module.Duration.MinMs
+	}
+
+	// Perf defaults
+	if out.Perf.GitTTLms <= 0 {
+		out.Perf.GitTTLms = def.Perf.GitTTLms
 	}
 
 	// Powerline palette defaults

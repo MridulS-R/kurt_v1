@@ -25,6 +25,10 @@ bg = 160
 # true = two-line prompt, false = one-line prompt
 two_line = true
 
+[perf]
+# Cache TTL for git status (milliseconds)
+git_ttl_ms = 1000
+
 [rprompt]
 # zsh RPROMPT (right side)
 enabled = true

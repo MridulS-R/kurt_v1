@@ -6,6 +6,7 @@ type Context struct {
 	StatusCode    int
 	DurationMs    int64
 	DurationMinMs int64
+	GitTTLms      int64
 	NoColor       bool
 }
 
