@@ -22,36 +22,56 @@ func thinkCmd() *cobra.Command {
 		Use:   "think [question]",
 		Short: "Ask an AI helper (Ollama-first) with optional local context",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q := strings.TrimSpace(strings.Join(args, " "))
-			if q == "" {
-				// Read from stdin interactively
-				fmt.Fprint(os.Stderr, "Question: ")
-				r := bufio.NewReader(os.Stdin)
-				line, _ := r.ReadString('\n')
-				q = strings.TrimSpace(line)
-			}
-			if q == "" {
-				return fmt.Errorf("empty question")
-			}
-
 			if cwd == "" {
 				cwd, _ = os.Getwd()
 			}
 
-			ctx := think.Context{CWD: cwd}
-			if includeLast {
-				ctx.Last = think.CollectLastFromEnv()
-			}
-			if includeGit {
-				ctx.Git = think.CollectGit(cwd)
+			mkCtx := func() think.Context {
+				ctx := think.Context{CWD: cwd}
+				if includeLast {
+					ctx.Last = think.CollectLastFromEnv()
+				}
+				if includeGit {
+					ctx.Git = think.CollectGit(cwd)
+				}
+				return ctx
 			}
 
 			client := think.OllamaClient{Host: host, Model: model}
-			ans, err := client.Think(ctx, q)
-			if err != nil {
-				return err
+
+			// If a question is provided as args, do one-shot.
+			q := strings.TrimSpace(strings.Join(args, " "))
+			if q != "" {
+				ans, err := client.Think(mkCtx(), q)
+				if err != nil {
+					return err
+				}
+				fmt.Println(ans)
+				return nil
 			}
-			fmt.Println(ans)
+
+			// Otherwise, run an interactive loop until Ctrl-C.
+			scanner := bufio.NewScanner(os.Stdin)
+			fmt.Fprintln(os.Stderr, "kurt think (Ctrl-C to exit)")
+			for {
+				fmt.Fprint(os.Stderr, "kurt> ")
+				if !scanner.Scan() {
+					break
+				}
+				line := strings.TrimSpace(scanner.Text())
+				if line == "" {
+					continue
+				}
+				if line == "/exit" || line == "/quit" {
+					break
+				}
+				ans, err := client.Think(mkCtx(), line)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "error:", err)
+					continue
+				}
+				fmt.Println(ans)
+			}
 			return nil
 		},
 	}
