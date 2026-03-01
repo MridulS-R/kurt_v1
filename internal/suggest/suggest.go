@@ -157,19 +157,119 @@ func heuristicEmpty(cwd string) string {
 
 func heuristicPrefix(prefix, cwd string) string {
 	p := strings.ToLower(strings.TrimSpace(prefix))
+
+	// ---- git ----
 	if strings.HasPrefix(p, "git ") {
-		if strings.HasPrefix(p, "git st") {
+		switch {
+		case strings.HasPrefix(p, "git st"):
 			return remainder(prefix, "git status")
-		}
-		if strings.HasPrefix(p, "git di") {
+		case strings.HasPrefix(p, "git di"):
 			return remainder(prefix, "git diff")
+		case strings.HasPrefix(p, "git co"):
+			return remainder(prefix, "git commit")
 		}
 	}
+
+	// ---- docker ----
+	if strings.HasPrefix(p, "docker ") {
+		switch {
+		case strings.HasPrefix(p, "docker ps"):
+			return remainder(prefix, "docker ps")
+		case strings.HasPrefix(p, "docker im"):
+			return remainder(prefix, "docker images")
+		case strings.HasPrefix(p, "docker lo"):
+			return remainder(prefix, "docker logs -f ")
+		case strings.HasPrefix(p, "docker ex"):
+			return remainder(prefix, "docker exec -it ")
+		}
+	}
+	if strings.HasPrefix(p, "docker-compose ") || strings.HasPrefix(p, "docker compose ") {
+		// Only if a compose file exists (best-effort)
+		if hasComposeFile(cwd) {
+			switch {
+			case strings.HasPrefix(p, "docker compose u"):
+				return remainder(prefix, "docker compose up -d")
+			case strings.HasPrefix(p, "docker compose d"):
+				return remainder(prefix, "docker compose down")
+			case strings.HasPrefix(p, "docker compose l"):
+				return remainder(prefix, "docker compose logs -f")
+			}
+		}
+	}
+
+	// ---- kubectl ----
+	if strings.HasPrefix(p, "kubectl ") {
+		switch {
+		case strings.HasPrefix(p, "kubectl g"):
+			return remainder(prefix, "kubectl get ")
+		case strings.HasPrefix(p, "kubectl d"):
+			return remainder(prefix, "kubectl describe ")
+		case strings.HasPrefix(p, "kubectl a"):
+			return remainder(prefix, "kubectl apply -f ")
+		case strings.HasPrefix(p, "kubectl l"):
+			return remainder(prefix, "kubectl logs -f ")
+		case strings.HasPrefix(p, "kubectl c"):
+			return remainder(prefix, "kubectl config ")
+		}
+	}
+
+	// ---- aws ----
+	if strings.HasPrefix(p, "aws ") {
+		switch {
+		case strings.HasPrefix(p, "aws s3 l"):
+			return remainder(prefix, "aws s3 ls")
+		case strings.HasPrefix(p, "aws st"):
+			return remainder(prefix, "aws sts get-caller-identity")
+		case strings.HasPrefix(p, "aws ec2 d"):
+			return remainder(prefix, "aws ec2 describe-instances")
+		}
+	}
+
+	// ---- go ----
 	if strings.HasPrefix(p, "go ") && fileExists(filepath.Join(cwd, "go.mod")) {
-		if strings.HasPrefix(p, "go te") {
+		switch {
+		case strings.HasPrefix(p, "go te"):
 			return remainder(prefix, "go test ./...")
+		case strings.HasPrefix(p, "go ru"):
+			return remainder(prefix, "go run .")
+		case strings.HasPrefix(p, "go bu"):
+			return remainder(prefix, "go build ./...")
+		case strings.HasPrefix(p, "go fm"):
+			return remainder(prefix, "gofmt -w .")
 		}
 	}
+
+	// ---- ruby ----
+	if strings.HasPrefix(p, "bundle ") && fileExists(filepath.Join(cwd, "Gemfile")) {
+		switch {
+		case strings.HasPrefix(p, "bundle i"):
+			return remainder(prefix, "bundle install")
+		case strings.HasPrefix(p, "bundle e"):
+			return remainder(prefix, "bundle exec ")
+		}
+	}
+	if strings.HasPrefix(p, "rails ") && fileExists(filepath.Join(cwd, "Gemfile")) {
+		if strings.HasPrefix(p, "rails s") {
+			return remainder(prefix, "rails server")
+		}
+	}
+
+	// ---- Elasticsearch ----
+	if strings.HasPrefix(p, "curl ") {
+		// common ES endpoints
+		if strings.Contains(p, "localhost:9200") {
+			if strings.HasSuffix(p, "_cat") || strings.Contains(p, "_cat") {
+				return ""
+			}
+		}
+	}
+	if strings.HasPrefix(p, "es ") {
+		// lightweight aliases people often use (user can create real alias)
+		if strings.HasPrefix(p, "es ca") {
+			return remainder(prefix, "es cat")
+		}
+	}
+
 	return ""
 }
 
@@ -192,6 +292,17 @@ func isGitRepo(cwd string) bool {
 func fileExists(p string) bool {
 	_, err := os.Stat(p)
 	return err == nil
+}
+
+func hasComposeFile(cwd string) bool {
+	// Check common compose filenames in cwd.
+	cands := []string{"docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"}
+	for _, name := range cands {
+		if fileExists(filepath.Join(cwd, name)) {
+			return true
+		}
+	}
+	return false
 }
 
 var ErrNotAvailable = errors.New("suggest not available")
