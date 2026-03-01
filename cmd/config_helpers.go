@@ -17,10 +17,16 @@ func loadConfigView() (prompt.ConfigView, string, error) {
 
 		GitTTLms: cfg.Perf.GitTTLms,
 
-		FgDir:             derefInt(cfg.Colors.Dir, 33),
-		FgGit:             derefInt(cfg.Colors.Git, 35),
-		FgDuration:        derefInt(cfg.Colors.Duration, 221),
-		FgExit:            derefInt(cfg.Colors.Exit, 160),
+		FgDir:           derefInt(cfg.Colors.Dir, 33),
+		FgGit:           derefInt(cfg.Colors.Git, 35),
+		FgDuration:      derefInt(cfg.Colors.Duration, 221),
+		FgExit:          derefInt(cfg.Colors.Exit, 160),
+		DirMaxDepth:     cfg.Readability.DirMaxDepth,
+		DirTruncateMid:  cfg.Readability.DirTruncateMid,
+		GitBranchMaxLen: cfg.Readability.GitBranchMaxLen,
+		GitBranchTail:   cfg.Readability.GitBranchTail,
+		ExitCompact:     cfg.Readability.ExitCompact,
+
 		RPromptEnabled:    cfg.RPrompt.Enabled != nil && *cfg.RPrompt.Enabled,
 		RPromptShowTime:   cfg.RPrompt.ShowTime != nil && *cfg.RPrompt.ShowTime,
 		RPromptTimeFormat: cfg.RPrompt.TimeFormat,

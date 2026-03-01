@@ -42,14 +42,15 @@ import (
 //
 
 type Config struct {
-	Style     string       `toml:"style"`
-	Prompt    Prompt       `toml:"prompt"`
-	RPrompt   RPromptCfg   `toml:"rprompt"`
-	Perf      PerfCfg      `toml:"perf"`
-	Modules   Modules      `toml:"modules"`
-	Module    ModuleOpts   `toml:"module"`
-	Colors    ColorsCfg    `toml:"colors"`
-	Powerline PowerlineCfg `toml:"powerline"`
+	Style       string         `toml:"style"`
+	Prompt      Prompt         `toml:"prompt"`
+	RPrompt     RPromptCfg     `toml:"rprompt"`
+	Perf        PerfCfg        `toml:"perf"`
+	Readability ReadabilityCfg `toml:"readability"`
+	Modules     Modules        `toml:"modules"`
+	Module      ModuleOpts     `toml:"module"`
+	Colors      ColorsCfg      `toml:"colors"`
+	Powerline   PowerlineCfg   `toml:"powerline"`
 }
 
 type ColorsCfg struct {
@@ -83,6 +84,19 @@ type ColorPair struct {
 
 type Prompt struct {
 	TwoLine bool `toml:"two_line"`
+}
+
+type ReadabilityCfg struct {
+	// Directory path formatting
+	DirMaxDepth    int  `toml:"dir_max_depth"`
+	DirTruncateMid bool `toml:"dir_truncate_mid"`
+
+	// Git branch formatting
+	GitBranchMaxLen int  `toml:"git_branch_max_len"`
+	GitBranchTail   bool `toml:"git_branch_tail"`
+
+	// Exit formatting
+	ExitCompact bool `toml:"exit_compact"`
 }
 
 type Modules struct {
@@ -131,7 +145,14 @@ func Default() Config {
 			ShowTime:   &bTrue,
 			TimeFormat: "15:04",
 		},
-		Perf:    PerfCfg{GitTTLms: 1000},
+		Perf: PerfCfg{GitTTLms: 1000},
+		Readability: ReadabilityCfg{
+			DirMaxDepth:     3,
+			DirTruncateMid:  true,
+			GitBranchMaxLen: 28,
+			GitBranchTail:   true,
+			ExitCompact:     true,
+		},
 		Modules: Modules{Order: []string{"dir", "git", "duration", "exit"}},
 		Colors:  ColorsCfg{Dir: &blue, Git: &green, Duration: &yellow, Exit: &red},
 		Module: ModuleOpts{
@@ -234,6 +255,16 @@ func MergeDefaults(user Config) Config {
 	// Perf defaults
 	if out.Perf.GitTTLms <= 0 {
 		out.Perf.GitTTLms = def.Perf.GitTTLms
+	}
+
+	// Readability defaults
+	if out.Readability.DirMaxDepth <= 0 {
+		out.Readability.DirMaxDepth = def.Readability.DirMaxDepth
+	}
+	// booleans: keep user value; defaults apply when missing -> zero value false.
+	// For now we treat missing as default by checking if style is loaded from defaults anyway.
+	if out.Readability.GitBranchMaxLen <= 0 {
+		out.Readability.GitBranchMaxLen = def.Readability.GitBranchMaxLen
 	}
 
 	// Colors defaults (foreground-only for minimal style)

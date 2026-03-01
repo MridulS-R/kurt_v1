@@ -22,5 +22,47 @@ func (m DirModule) Render(ctx Context) (string, bool) {
 			cwd = "~" + strings.TrimPrefix(cwd, home)
 		}
 	}
+
+	maxDepth := ctx.DirMaxDepth
+	if maxDepth <= 0 {
+		maxDepth = 3
+	}
+	cwd = shortenPath(cwd, maxDepth, ctx.DirTruncateMid)
+
 	return cwd, true
+}
+
+func shortenPath(p string, maxDepth int, truncateMid bool) string {
+	// Keep ~ prefix intact
+	prefix := ""
+	rest := p
+	if strings.HasPrefix(p, "~") {
+		prefix = "~"
+		rest = strings.TrimPrefix(p, "~")
+	}
+	rest = strings.TrimPrefix(rest, string(os.PathSeparator))
+	parts := []string{}
+	if rest != "" {
+		parts = strings.Split(rest, string(os.PathSeparator))
+	}
+	if len(parts) <= maxDepth {
+		if prefix != "" {
+			if len(parts) == 0 {
+				return "~"
+			}
+			return prefix + string(os.PathSeparator) + strings.Join(parts, string(os.PathSeparator))
+		}
+		return p
+	}
+
+	// show last maxDepth parts
+	tail := parts[len(parts)-maxDepth:]
+	out := strings.Join(tail, string(os.PathSeparator))
+	if truncateMid {
+		out = "…" + string(os.PathSeparator) + out
+	}
+	if prefix != "" {
+		return prefix + string(os.PathSeparator) + out
+	}
+	return out
 }

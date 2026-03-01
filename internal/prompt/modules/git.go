@@ -20,5 +20,5 @@ func (m GitModule) Render(ctx Context) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	return info.String(), true
+	return info.String(ctx.GitBranchMaxLen, ctx.GitBranchTail), true
 }

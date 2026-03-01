@@ -143,11 +143,12 @@ func atoi(s string) int {
 	return n
 }
 
-func (i Info) String() string {
+func (i Info) String(branchMaxLen int, branchTail bool) string {
 	if i.Branch == "" {
 		return ""
 	}
-	b := " " + i.Branch
+	br := shortenBranch(i.Branch, branchMaxLen, branchTail)
+	b := " " + br
 	if i.Dirty {
 		b += "*"
 	}
@@ -158,4 +159,28 @@ func (i Info) String() string {
 		b += fmt.Sprintf(" ↓%d", i.Behind)
 	}
 	return b
+}
+
+func shortenBranch(br string, maxLen int, tail bool) string {
+	br = strings.TrimSpace(br)
+	if br == "" {
+		return br
+	}
+	if tail {
+		// keep last path segment after /
+		if idx := strings.LastIndex(br, "/"); idx >= 0 && idx < len(br)-1 {
+			br = br[idx+1:]
+		}
+	}
+	if maxLen <= 0 {
+		maxLen = 28
+	}
+	if len(br) <= maxLen {
+		return br
+	}
+	// simple end-truncation
+	if maxLen < 2 {
+		return br[:maxLen]
+	}
+	return br[:maxLen-1] + "…"
 }

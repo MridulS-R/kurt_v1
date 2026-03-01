@@ -37,6 +37,23 @@ two_line = true
 # Cache TTL for git status (milliseconds)
 git_ttl_ms = 1000
 
+[readability]
+# Path shortening
+# Show last N folders (default 3)
+dir_max_depth = 3
+# Add leading … when shortened
+dir_truncate_mid = true
+
+# Git branch shortening
+# Max branch length before truncation
+git_branch_max_len = 28
+# If true, keep only last segment after '/' (recommended)
+git_branch_tail = true
+
+# Exit formatting
+# true => ✗1, false => exit=1
+exit_compact = true
+
 [rprompt]
 # zsh RPROMPT (right side)
 enabled = true

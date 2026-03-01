@@ -26,13 +26,18 @@ func Render(a RenderArgs) (string, RenderInfo, error) {
 	mods := modulesFromConfig(a.Config)
 
 	ctx := modules.Context{
-		Shell:         a.Shell,
-		CWD:           filepath.Clean(a.CWD),
-		StatusCode:    a.StatusCode,
-		DurationMs:    a.DurationMs,
-		DurationMinMs: a.Config.DurationMinMs,
-		GitTTLms:      a.Config.GitTTLms,
-		NoColor:       a.NoColor,
+		Shell:           a.Shell,
+		CWD:             filepath.Clean(a.CWD),
+		StatusCode:      a.StatusCode,
+		DurationMs:      a.DurationMs,
+		DurationMinMs:   a.Config.DurationMinMs,
+		GitTTLms:        a.Config.GitTTLms,
+		DirMaxDepth:     a.Config.DirMaxDepth,
+		DirTruncateMid:  a.Config.DirTruncateMid,
+		GitBranchMaxLen: a.Config.GitBranchMaxLen,
+		GitBranchTail:   a.Config.GitBranchTail,
+		ExitCompact:     a.Config.ExitCompact,
+		NoColor:         a.NoColor,
 	}
 
 	parts := make([]string, 0, len(mods))

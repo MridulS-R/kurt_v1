@@ -20,6 +20,13 @@ type ConfigView struct {
 	FgDuration int
 	FgExit     int
 
+	// Readability
+	DirMaxDepth     int
+	DirTruncateMid  bool
+	GitBranchMaxLen int
+	GitBranchTail   bool
+	ExitCompact     bool
+
 	// Right prompt (zsh RPROMPT)
 	RPromptEnabled    bool
 	RPromptShowTime   bool
