@@ -1,0 +1,27 @@
+# kurt_v1 config example
+# Place at: ~/.config/kurt/config.toml
+# Or set:   export KURT_CONFIG=/path/to/config.toml
+
+style = "minimal"  # reserved for later (powerline/minimal)
+
+[prompt]
+# true = two-line prompt, false = one-line prompt
+two_line = true
+
+[modules]
+# Module order (unknown names are ignored)
+order = ["dir", "git", "duration", "exit"]
+
+[module.dir]
+enabled = true
+
+[module.git]
+enabled = true
+
+[module.duration]
+enabled = true
+# Show duration only if command took at least this long
+min_ms = 500
+
+[module.exit]
+enabled = true

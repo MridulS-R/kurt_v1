@@ -14,6 +14,7 @@ type RenderArgs struct {
 	StatusCode int
 	DurationMs int64
 	NoColor    bool
+	Config     ConfigView
 }
 
 type RenderInfo struct {
@@ -21,20 +22,16 @@ type RenderInfo struct {
 }
 
 func Render(a RenderArgs) (string, RenderInfo, error) {
-	// v1: hardcoded order; config comes later.
-	mods := []modules.Module{
-		modules.DirModule{},
-		modules.GitModule{},
-		modules.DurationModule{},
-		modules.ExitModule{},
-	}
+	// v1: module order is config-driven (with safe defaults).
+	mods := modulesFromConfig(a.Config)
 
 	ctx := modules.Context{
-		Shell:      a.Shell,
-		CWD:        filepath.Clean(a.CWD),
-		StatusCode: a.StatusCode,
-		DurationMs: a.DurationMs,
-		NoColor:    a.NoColor,
+		Shell:         a.Shell,
+		CWD:           filepath.Clean(a.CWD),
+		StatusCode:    a.StatusCode,
+		DurationMs:    a.DurationMs,
+		DurationMinMs: a.Config.DurationMinMs,
+		NoColor:       a.NoColor,
 	}
 
 	parts := make([]string, 0, len(mods))
@@ -54,6 +51,11 @@ func Render(a RenderArgs) (string, RenderInfo, error) {
 		line2 = "✗ "
 	}
 
-	out := fmt.Sprintf("%s\n%s", line1, line2)
+	if a.Config.TwoLine {
+		out := fmt.Sprintf("%s\n%s", line1, line2)
+		return out, info, nil
+	}
+	// One-line mode
+	out := fmt.Sprintf("%s %s", line1, line2)
 	return out, info, nil
 }

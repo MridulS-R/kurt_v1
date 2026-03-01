@@ -11,8 +11,11 @@ func (m DurationModule) Render(ctx Context) (string, bool) {
 	if ms <= 0 {
 		return "", false
 	}
-	// v1 threshold: only show if >= 500ms
-	if ms < 500 {
+	min := ctx.DurationMinMs
+	if min <= 0 {
+		min = 500
+	}
+	if ms < min {
 		return "", false
 	}
 	if ms < 1000 {
