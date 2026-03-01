@@ -1,0 +1,15 @@
+# Go
+/bin/
+/dist/
+*.exe
+*.out
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Config (user local)
+config.toml
