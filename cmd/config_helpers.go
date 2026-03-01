@@ -21,6 +21,12 @@ func loadConfigView() (prompt.ConfigView, string, error) {
 		EnableExit:     cfg.Module.Exit.Enabled != nil && *cfg.Module.Exit.Enabled,
 
 		DurationMinMs: 500,
+		Powerline: prompt.PowerlinePalette{
+			Dir:      prompt.ColorPair{Fg: derefInt(cfg.Powerline.Dir.Fg, 15), Bg: derefInt(cfg.Powerline.Dir.Bg, 31)},
+			Git:      prompt.ColorPair{Fg: derefInt(cfg.Powerline.Git.Fg, 15), Bg: derefInt(cfg.Powerline.Git.Bg, 28)},
+			Duration: prompt.ColorPair{Fg: derefInt(cfg.Powerline.Duration.Fg, 16), Bg: derefInt(cfg.Powerline.Duration.Bg, 220)},
+			Exit:     prompt.ColorPair{Fg: derefInt(cfg.Powerline.Exit.Fg, 15), Bg: derefInt(cfg.Powerline.Exit.Bg, 160)},
+		},
 	}
 	if cfg.Module.Duration.MinMs != nil {
 		cv.DurationMinMs = *cfg.Module.Duration.MinMs

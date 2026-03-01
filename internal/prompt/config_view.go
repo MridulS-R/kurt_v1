@@ -17,6 +17,34 @@ type ConfigView struct {
 	EnableExit     bool
 
 	DurationMinMs int64
+	Powerline     PowerlinePalette
+}
+
+type ColorPair struct {
+	Fg int
+	Bg int
+}
+
+type PowerlinePalette struct {
+	Dir      ColorPair
+	Git      ColorPair
+	Duration ColorPair
+	Exit     ColorPair
+}
+
+func (p PowerlinePalette) For(name string) ColorPair {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "dir":
+		return p.Dir
+	case "git":
+		return p.Git
+	case "duration":
+		return p.Duration
+	case "exit":
+		return p.Exit
+	default:
+		return ColorPair{Fg: 15, Bg: 31}
+	}
 }
 
 func (c ConfigView) Enabled(name string) bool {

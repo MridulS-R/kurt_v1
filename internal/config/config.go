@@ -42,10 +42,23 @@ import (
 //
 
 type Config struct {
-	Style   string     `toml:"style"`
-	Prompt  Prompt     `toml:"prompt"`
-	Modules Modules    `toml:"modules"`
-	Module  ModuleOpts `toml:"module"`
+	Style     string       `toml:"style"`
+	Prompt    Prompt       `toml:"prompt"`
+	Modules   Modules      `toml:"modules"`
+	Module    ModuleOpts   `toml:"module"`
+	Powerline PowerlineCfg `toml:"powerline"`
+}
+
+type PowerlineCfg struct {
+	Dir      ColorPair `toml:"dir"`
+	Git      ColorPair `toml:"git"`
+	Duration ColorPair `toml:"duration"`
+	Exit     ColorPair `toml:"exit"`
+}
+
+type ColorPair struct {
+	Fg *int `toml:"fg"`
+	Bg *int `toml:"bg"`
 }
 
 type Prompt struct {
@@ -76,6 +89,15 @@ func Default() Config {
 	// v1 defaults match current hardcoded behavior.
 	bTrue := true
 	min := int64(500)
+
+	// Default Powerline palette (ANSI 256 colors)
+	fg15 := 15
+	fg16 := 16
+	bg31 := 31
+	bg28 := 28
+	bg220 := 220
+	bg160 := 160
+
 	return Config{
 		Style:   "minimal",
 		Prompt:  Prompt{TwoLine: true},
@@ -85,6 +107,12 @@ func Default() Config {
 			Git:      BasicModule{Enabled: &bTrue},
 			Exit:     BasicModule{Enabled: &bTrue},
 			Duration: DurationMod{Enabled: &bTrue, MinMs: &min},
+		},
+		Powerline: PowerlineCfg{
+			Dir:      ColorPair{Fg: &fg15, Bg: &bg31},
+			Git:      ColorPair{Fg: &fg15, Bg: &bg28},
+			Duration: ColorPair{Fg: &fg16, Bg: &bg220},
+			Exit:     ColorPair{Fg: &fg15, Bg: &bg160},
 		},
 	}
 }
@@ -159,6 +187,21 @@ func MergeDefaults(user Config) Config {
 	if out.Module.Duration.MinMs == nil {
 		out.Module.Duration.MinMs = def.Module.Duration.MinMs
 	}
+
+	// Powerline palette defaults
+	applyPair := func(u ColorPair, d ColorPair) ColorPair {
+		if u.Fg == nil {
+			u.Fg = d.Fg
+		}
+		if u.Bg == nil {
+			u.Bg = d.Bg
+		}
+		return u
+	}
+	out.Powerline.Dir = applyPair(out.Powerline.Dir, def.Powerline.Dir)
+	out.Powerline.Git = applyPair(out.Powerline.Git, def.Powerline.Git)
+	out.Powerline.Duration = applyPair(out.Powerline.Duration, def.Powerline.Duration)
+	out.Powerline.Exit = applyPair(out.Powerline.Exit, def.Powerline.Exit)
 
 	if out.Prompt.TwoLine == false {
 		// keep false if user set it

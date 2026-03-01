@@ -4,6 +4,23 @@
 
 style = "minimal"  # minimal | powerline
 
+# Powerline palette (ANSI 256 colors)
+[powerline.dir]
+fg = 15
+bg = 31
+
+[powerline.git]
+fg = 15
+bg = 28
+
+[powerline.duration]
+fg = 16
+bg = 220
+
+[powerline.exit]
+fg = 15
+bg = 160
+
 [prompt]
 # true = two-line prompt, false = one-line prompt
 two_line = true
