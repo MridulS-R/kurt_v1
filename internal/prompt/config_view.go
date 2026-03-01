@@ -7,6 +7,7 @@ import "strings"
 // (Keeps boundaries clean.)
 
 type ConfigView struct {
+	Style   string
 	TwoLine bool
 	Order   []string
 

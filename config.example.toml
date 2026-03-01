@@ -2,7 +2,7 @@
 # Place at: ~/.config/kurt/config.toml
 # Or set:   export KURT_CONFIG=/path/to/config.toml
 
-style = "minimal"  # reserved for later (powerline/minimal)
+style = "minimal"  # minimal | powerline
 
 [prompt]
 # true = two-line prompt, false = one-line prompt

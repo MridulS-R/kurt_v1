@@ -11,6 +11,7 @@ func loadConfigView() (prompt.ConfigView, string, error) {
 		return prompt.ConfigView{}, path, err
 	}
 	cv := prompt.ConfigView{
+		Style:   cfg.Style,
 		TwoLine: cfg.Prompt.TwoLine,
 		Order:   cfg.Modules.Order,
 

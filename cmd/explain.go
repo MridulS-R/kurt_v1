@@ -17,6 +17,7 @@ func explainCmd() *cobra.Command {
 				return err
 			}
 			fmt.Println("config:", path)
+			fmt.Println("style:", cfg.Style)
 			fmt.Println("two_line:", cfg.TwoLine)
 			fmt.Println("order:", cfg.Order)
 			fmt.Println("enabled:")

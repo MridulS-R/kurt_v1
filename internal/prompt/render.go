@@ -44,7 +44,27 @@ func Render(a RenderArgs) (string, RenderInfo, error) {
 		}
 	}
 
-	line1 := strings.Join(parts, " ")
+	style := strings.ToLower(strings.TrimSpace(a.Config.Style))
+	line1 := ""
+	if style == "powerline" {
+		// Powerline uses its own segment rendering.
+		segs := make([]plSeg, 0, len(parts))
+		// Simple palette (256-color): tweak later via config.
+		palette := map[string]plSeg{
+			"dir":      {Fg: 15, Bg: 31},  // white on blue
+			"git":      {Fg: 15, Bg: 28},  // white on green
+			"duration": {Fg: 16, Bg: 220}, // black on yellow
+			"exit":     {Fg: 15, Bg: 160}, // white on red
+		}
+		for i, name := range info.Modules {
+			base := palette[name]
+			base.Text = parts[i]
+			segs = append(segs, base)
+		}
+		line1 = renderPowerline(segs)
+	} else {
+		line1 = strings.Join(parts, " ")
+	}
 	// Input line: keep it simple for now
 	line2 := "❯ "
 	if a.StatusCode != 0 {
