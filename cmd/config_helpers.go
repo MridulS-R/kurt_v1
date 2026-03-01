@@ -15,7 +15,12 @@ func loadConfigView() (prompt.ConfigView, string, error) {
 		TwoLine: cfg.Prompt.TwoLine,
 		Order:   cfg.Modules.Order,
 
-		GitTTLms:          cfg.Perf.GitTTLms,
+		GitTTLms: cfg.Perf.GitTTLms,
+
+		FgDir:             derefInt(cfg.Colors.Dir, 33),
+		FgGit:             derefInt(cfg.Colors.Git, 35),
+		FgDuration:        derefInt(cfg.Colors.Duration, 221),
+		FgExit:            derefInt(cfg.Colors.Exit, 160),
 		RPromptEnabled:    cfg.RPrompt.Enabled != nil && *cfg.RPrompt.Enabled,
 		RPromptShowTime:   cfg.RPrompt.ShowTime != nil && *cfg.RPrompt.ShowTime,
 		RPromptTimeFormat: cfg.RPrompt.TimeFormat,

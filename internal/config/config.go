@@ -48,7 +48,15 @@ type Config struct {
 	Perf      PerfCfg      `toml:"perf"`
 	Modules   Modules      `toml:"modules"`
 	Module    ModuleOpts   `toml:"module"`
+	Colors    ColorsCfg    `toml:"colors"`
 	Powerline PowerlineCfg `toml:"powerline"`
+}
+
+type ColorsCfg struct {
+	Dir      *int `toml:"dir"`
+	Git      *int `toml:"git"`
+	Duration *int `toml:"duration"`
+	Exit     *int `toml:"exit"`
 }
 
 type PerfCfg struct {
@@ -110,6 +118,11 @@ func Default() Config {
 	bg220 := 220
 	bg160 := 160
 
+	blue := 33
+	green := 35
+	yellow := 221
+	red := 160
+
 	return Config{
 		Style:  "minimal",
 		Prompt: Prompt{TwoLine: true},
@@ -120,6 +133,7 @@ func Default() Config {
 		},
 		Perf:    PerfCfg{GitTTLms: 1000},
 		Modules: Modules{Order: []string{"dir", "git", "duration", "exit"}},
+		Colors:  ColorsCfg{Dir: &blue, Git: &green, Duration: &yellow, Exit: &red},
 		Module: ModuleOpts{
 			Dir:      BasicModule{Enabled: &bTrue},
 			Git:      BasicModule{Enabled: &bTrue},
@@ -220,6 +234,20 @@ func MergeDefaults(user Config) Config {
 	// Perf defaults
 	if out.Perf.GitTTLms <= 0 {
 		out.Perf.GitTTLms = def.Perf.GitTTLms
+	}
+
+	// Colors defaults (foreground-only for minimal style)
+	if out.Colors.Dir == nil {
+		out.Colors.Dir = def.Colors.Dir
+	}
+	if out.Colors.Git == nil {
+		out.Colors.Git = def.Colors.Git
+	}
+	if out.Colors.Duration == nil {
+		out.Colors.Duration = def.Colors.Duration
+	}
+	if out.Colors.Exit == nil {
+		out.Colors.Exit = def.Colors.Exit
 	}
 
 	// Powerline palette defaults

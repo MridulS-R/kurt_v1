@@ -14,6 +14,12 @@ type ConfigView struct {
 	// Performance knobs
 	GitTTLms int64
 
+	// Minimal style colors (ANSI 256 fg)
+	FgDir      int
+	FgGit      int
+	FgDuration int
+	FgExit     int
+
 	// Right prompt (zsh RPROMPT)
 	RPromptEnabled    bool
 	RPromptShowTime   bool

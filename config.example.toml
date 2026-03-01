@@ -4,6 +4,14 @@
 
 style = "minimal"  # minimal | powerline
 
+# Minimal style colors (foreground only; ANSI 256)
+[colors]
+# sky-blue-ish
+# dir = 33
+# git = 24
+# duration = 221
+# exit = 160
+
 # Powerline palette (ANSI 256 colors)
 [powerline.dir]
 fg = 15

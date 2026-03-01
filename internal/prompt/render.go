@@ -56,7 +56,27 @@ func Render(a RenderArgs) (string, RenderInfo, error) {
 		}
 		line1 = renderPowerline(segs)
 	} else {
-		line1 = strings.Join(parts, " ")
+		// Minimal style: foreground colors only
+		colored := make([]string, 0, len(parts))
+		for i, name := range info.Modules {
+			seg := parts[i]
+			fg := 0
+			switch name {
+			case "dir":
+				fg = a.Config.FgDir
+			case "git":
+				fg = a.Config.FgGit
+			case "duration":
+				fg = a.Config.FgDuration
+			case "exit":
+				fg = a.Config.FgExit
+			}
+			if fg > 0 {
+				seg = fmt.Sprintf("\x1b[38;5;%dm%s\x1b[0m", fg, seg)
+			}
+			colored = append(colored, seg)
+		}
+		line1 = strings.Join(colored, " ")
 	}
 	// Input line: keep it simple for now
 	line2 := "❯ "
