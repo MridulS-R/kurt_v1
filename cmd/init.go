@@ -83,8 +83,8 @@ function __kurt_suggest_update() {
   fi
   local s=$(kurt suggest --buffer "$BUFFER" --cwd "$PWD" 2>/dev/null)
   if [[ -n "$s" ]]; then
-    # faint gray
-    POSTDISPLAY=$'%F{244}'"$s"$'%f'
+    # faint gray (ANSI 256 fg)
+    POSTDISPLAY=$'\e[38;5;244m'"$s"$'\e[0m'
   else
     POSTDISPLAY=""
   fi
