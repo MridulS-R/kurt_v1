@@ -15,18 +15,25 @@ func promptCmd() *cobra.Command {
 	var cwd string
 	var status int
 	var durationMs int64
+	var noColor bool
 
 	c := &cobra.Command{
 		Use:   "prompt",
 		Short: "Render the prompt for the current shell",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			start := time.Now()
+			cfg, cfgPath, err := loadConfigView()
+			if err != nil {
+				return fmt.Errorf("config load failed: %w", err)
+			}
+
 			out, info, err := prompt.Render(prompt.RenderArgs{
 				Shell:      shell,
 				CWD:        cwd,
 				StatusCode: status,
 				DurationMs: durationMs,
-				NoColor:    false,
+				NoColor:    noColor,
+				Config:     cfg,
 			})
 			if err != nil {
 				return err
@@ -35,7 +42,7 @@ func promptCmd() *cobra.Command {
 
 			if os.Getenv("KURT_DEBUG") == "1" {
 				elapsed := time.Since(start)
-				fmt.Fprintf(os.Stderr, "\n[kurt] render=%s modules=%v\n", elapsed, info.Modules)
+				fmt.Fprintf(os.Stderr, "\n[kurt] render=%s modules=%v config=%s\n", elapsed, info.Modules, cfgPath)
 			}
 			return nil
 		},
@@ -45,6 +52,7 @@ func promptCmd() *cobra.Command {
 	c.Flags().StringVar(&cwd, "cwd", "", "Current working directory")
 	c.Flags().IntVar(&status, "status", 0, "Last command exit code")
 	c.Flags().Int64Var(&durationMs, "duration-ms", 0, "Last command duration in ms")
+	c.Flags().BoolVar(&noColor, "no-color", false, "Disable ANSI colors")
 
 	_ = c.MarkFlagRequired("cwd")
 	return c

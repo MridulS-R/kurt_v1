@@ -80,3 +80,26 @@ min_ms = 500
 
 [module.exit]
 enabled = true
+
+# ── AI assistant (kurt think) ────────────────────────────────────────────────
+[think]
+# Provider to use. Options:
+#   ollama        Local Ollama server (default, no API key needed)
+#   openai        OpenAI API           → set OPENAI_API_KEY
+#   anthropic     Anthropic Claude     → set ANTHROPIC_API_KEY
+#   groq          Groq (very fast)     → set GROQ_API_KEY
+#   together      Together AI          → set TOGETHER_API_KEY
+#   openrouter    OpenRouter           → set OPENROUTER_API_KEY
+#   lmstudio      LM Studio (local)    → no API key needed
+#   openai-compat Any OpenAI-compat    → set base_url + OPENAI_API_KEY
+provider = "ollama"
+
+# Override the model for the chosen provider.
+# Leave empty to use the provider's default model.
+# model = "gpt-4o"
+
+# For openai-compat: set the base URL of your custom endpoint.
+# base_url = "http://localhost:8080/v1"
+
+# For ollama: override the server address.
+# host = "http://127.0.0.1:11434"

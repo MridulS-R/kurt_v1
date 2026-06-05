@@ -51,6 +51,24 @@ type Config struct {
 	Module      ModuleOpts     `toml:"module"`
 	Colors      ColorsCfg      `toml:"colors"`
 	Powerline   PowerlineCfg   `toml:"powerline"`
+	Think       ThinkCfg       `toml:"think"`
+}
+
+// ThinkCfg controls the kurt think LLM backend.
+type ThinkCfg struct {
+	// Provider selects the backend. Values: ollama, openai, anthropic, groq,
+	// together, openrouter, lmstudio, openai-compat.
+	// Env override: KURT_PROVIDER
+	Provider string `toml:"provider"`
+	// Model overrides the provider default.
+	// Env override: KURT_MODEL
+	Model string `toml:"model"`
+	// BaseURL overrides the endpoint (required for openai-compat).
+	// Env override: KURT_BASE_URL
+	BaseURL string `toml:"base_url"`
+	// Host is the Ollama server address (ollama only).
+	// Env override: KURT_OLLAMA_HOST
+	Host string `toml:"host"`
 }
 
 type ColorsCfg struct {
@@ -83,7 +101,7 @@ type ColorPair struct {
 }
 
 type Prompt struct {
-	TwoLine bool `toml:"two_line"`
+	TwoLine *bool `toml:"two_line"`
 }
 
 type ReadabilityCfg struct {
@@ -122,6 +140,7 @@ type DurationMod struct {
 func Default() Config {
 	// v1 defaults match current hardcoded behavior.
 	bTrue := true
+	twoLine := true
 	min := int64(500)
 
 	// Default Powerline palette (ANSI 256 colors)
@@ -139,7 +158,7 @@ func Default() Config {
 
 	return Config{
 		Style:  "minimal",
-		Prompt: Prompt{TwoLine: true},
+		Prompt: Prompt{TwoLine: &twoLine},
 		RPrompt: RPromptCfg{
 			Enabled:    &bTrue,
 			ShowTime:   &bTrue,
@@ -211,13 +230,6 @@ func MergeDefaults(user Config) Config {
 	out := user
 	if strings.TrimSpace(out.Style) == "" {
 		out.Style = def.Style
-	}
-	// Prompt defaults
-	if !out.Prompt.TwoLine {
-		// If user explicitly set false, keep it.
-		// If it is zero value due to missing field, we can't distinguish.
-		// We'll treat missing as default=true by checking if TOML had prompt at all later.
-		// For v1 simplicity: if empty config file, default is true anyway.
 	}
 	if out.Modules.Order == nil || len(out.Modules.Order) == 0 {
 		out.Modules.Order = def.Modules.Order
@@ -296,14 +308,8 @@ func MergeDefaults(user Config) Config {
 	out.Powerline.Duration = applyPair(out.Powerline.Duration, def.Powerline.Duration)
 	out.Powerline.Exit = applyPair(out.Powerline.Exit, def.Powerline.Exit)
 
-	if out.Prompt.TwoLine == false {
-		// keep false if user set it
-	} else {
-		// if unset, default already true
-		// (can't detect unset cleanly without pointers; acceptable for v1)
-		if user.Prompt.TwoLine == false {
-			// ambiguous, do nothing
-		}
+	if out.Prompt.TwoLine == nil {
+		out.Prompt.TwoLine = def.Prompt.TwoLine
 	}
 
 	return out

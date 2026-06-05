@@ -28,28 +28,31 @@ func initZshCmd() *cobra.Command {
 # Path to kurt binary (adjust if needed)
 # export PATH="$HOME/.local/bin:$PATH"
 
+# Load zsh datetime module (provides EPOCHREALTIME) — safe to call multiple times.
+zmodload zsh/datetime
+
+# Milliseconds since epoch using zsh's built-in EPOCHREALTIME (no subprocess).
+# EPOCHREALTIME = "1234567890.123456" → seconds.microseconds
+__kurt_ms() { echo $(( ${EPOCHREALTIME%.*} * 1000 + ${EPOCHREALTIME#*.} / 1000 )) }
+
 function __kurt_preexec() {
-  # Zsh passes the full command line as $1
-  export __KURT_CMD_START_MS=$(python3 - <<'PY'
-import time
-print(int(time.time()*1000))
-PY
-)
+  export __KURT_CMD_START_MS=$(__kurt_ms)
   export __KURT_LAST_CMD="$1"
 }
 
 function __kurt_precmd() {
   local exit_code=$?
-  local now_ms=$(python3 - <<'PY'
-import time
-print(int(time.time()*1000))
-PY
-)
+  local now_ms=$(__kurt_ms)
   local start_ms=${__KURT_CMD_START_MS:-$now_ms}
   local dur_ms=$(( now_ms - start_ms ))
 
   export __KURT_LAST_EXIT=$exit_code
   export __KURT_LAST_DURATION_MS=$dur_ms
+
+  # Log failures in the background so kurt think can learn from them.
+  if [[ $exit_code -ne 0 && -n "$__KURT_LAST_CMD" ]]; then
+    kurt log-failure --exit $exit_code --cwd "$PWD" "$__KURT_LAST_CMD" &>/dev/null &!
+  fi
 
   # Prompt: first line context, second line input
   local p=$(kurt prompt --shell zsh --cwd "$PWD" --status $exit_code --duration-ms $dur_ms)
@@ -76,18 +79,13 @@ function __kurt_suggest_update() {
     POSTDISPLAY=""
     return
   fi
-  # Only suggest when cursor is at end (simple, avoids complex editing cases)
+  # Only suggest when cursor is at end
   if (( CURSOR != ${#BUFFER} )); then
     POSTDISPLAY=""
     return
   fi
   local s=$(kurt suggest --buffer "$BUFFER" --cwd "$PWD" 2>/dev/null)
-  if [[ -n "$s" ]]; then
-    # faint gray (ANSI 256 fg)
-    POSTDISPLAY=$'\e[38;5;244m'"$s"$'\e[0m'
-  else
-    POSTDISPLAY=""
-  fi
+  POSTDISPLAY="${s}"
 }
 
 function __kurt_accept_suggest() {
@@ -102,6 +100,10 @@ function __kurt_accept_suggest() {
     zle forward-char
   fi
 }
+
+# Color the suggestion suffix (POSTDISPLAY) using ZLE's highlight array.
+# This is how zsh-autosuggestions colors suggestions — no raw ANSI needed.
+zle_highlight+=( suffix:fg=244 )
 
 # Hook updates during redraw
 zle -N zle-line-pre-redraw __kurt_suggest_update

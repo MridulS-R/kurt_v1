@@ -20,6 +20,11 @@ func Execute() {
 	root.AddCommand(suggestCmd())
 	root.AddCommand(thinkCmd())
 	root.AddCommand(explainCmd())
+	root.AddCommand(versionCmd())
+	root.AddCommand(logFailureCmd())
+	root.AddCommand(modelsCmd())
+	root.AddCommand(sessionCmd())
+	root.AddCommand(agentCmd())
 
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

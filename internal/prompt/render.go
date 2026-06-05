@@ -52,8 +52,8 @@ func Render(a RenderArgs) (string, RenderInfo, error) {
 
 	style := strings.ToLower(strings.TrimSpace(a.Config.Style))
 	line1 := ""
-	if style == "powerline" {
-		// Powerline uses its own segment rendering.
+	if style == "powerline" && !a.NoColor {
+		// Powerline uses its own segment rendering (requires Nerd Font).
 		segs := make([]plSeg, 0, len(parts))
 		for i, name := range info.Modules {
 			cp := a.Config.Powerline.For(name)
@@ -61,23 +61,25 @@ func Render(a RenderArgs) (string, RenderInfo, error) {
 		}
 		line1 = renderPowerline(segs)
 	} else {
-		// Minimal style: foreground colors only
+		// Minimal style: foreground colors only (or no color when --no-color).
 		colored := make([]string, 0, len(parts))
 		for i, name := range info.Modules {
 			seg := parts[i]
-			fg := 0
-			switch name {
-			case "dir":
-				fg = a.Config.FgDir
-			case "git":
-				fg = a.Config.FgGit
-			case "duration":
-				fg = a.Config.FgDuration
-			case "exit":
-				fg = a.Config.FgExit
-			}
-			if fg > 0 {
-				seg = fmt.Sprintf("\x1b[38;5;%dm%s\x1b[0m", fg, seg)
+			if !a.NoColor {
+				fg := 0
+				switch name {
+				case "dir":
+					fg = a.Config.FgDir
+				case "git":
+					fg = a.Config.FgGit
+				case "duration":
+					fg = a.Config.FgDuration
+				case "exit":
+					fg = a.Config.FgExit
+				}
+				if fg > 0 {
+					seg = fmt.Sprintf("\x1b[38;5;%dm%s\x1b[0m", fg, seg)
+				}
 			}
 			colored = append(colored, seg)
 		}

@@ -1,7 +1,6 @@
 package gitinfo
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os/exec"
@@ -26,11 +25,10 @@ type cacheEntry struct {
 
 var (
 	mu    sync.Mutex
-	cache = map[string]cacheEntry{} // key: repoRoot
+	cache = map[string]cacheEntry{}
 )
 
-// Get returns cached git info for cwd (if inside a repo). It uses a short TTL.
-// This is designed for prompts: fast and safe.
+// Get returns cached git info for cwd (if inside a repo).
 func Get(cwd string, ttl time.Duration) (Info, bool) {
 	root := repoRoot(cwd)
 	if root == "" {
@@ -45,11 +43,7 @@ func Get(cwd string, ttl time.Duration) (Info, bool) {
 	}
 	mu.Unlock()
 
-	info := Info{RepoRoot: root}
-	// Use small time budgets per command.
-	info.Branch = branch(root)
-	info.Dirty = dirty(root)
-	info.Ahead, info.Behind = aheadBehind(root)
+	info := fetchAll(root)
 
 	mu.Lock()
 	cache[root] = cacheEntry{info: info, fetchedAt: time.Now()}
@@ -77,62 +71,45 @@ func repoRoot(cwd string) string {
 	return filepath.Clean(p)
 }
 
-func branch(repoRoot string) string {
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Millisecond)
+// fetchAll gets branch, dirty flag, and ahead/behind in a single git call.
+// Uses porcelain=v2 which was introduced in git 2.11 (2016).
+func fetchAll(repoRoot string) Info {
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmd := exec.CommandContext(ctx, "git", "status", "--porcelain=v2", "--branch", "-uno")
 	cmd.Dir = repoRoot
 	out, err := cmd.Output()
 	if err != nil {
-		return ""
+		return Info{RepoRoot: repoRoot}
 	}
-	b := strings.TrimSpace(string(out))
-	if b == "" || b == "HEAD" {
-		return ""
-	}
-	return b
+	return parseStatusV2(repoRoot, string(out))
 }
 
-func dirty(repoRoot string) bool {
-	// Fast-ish porcelain; avoid untracked for speed (-uno).
-	ctx, cancel := context.WithTimeout(context.Background(), 80*time.Millisecond)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", "status", "--porcelain", "-uno")
-	cmd.Dir = repoRoot
-	var buf bytes.Buffer
-	cmd.Stdout = &buf
-	cmd.Stderr = &buf
-	if err := cmd.Run(); err != nil {
-		return false
+func parseStatusV2(repoRoot, out string) Info {
+	info := Info{RepoRoot: repoRoot}
+	for _, line := range strings.Split(out, "\n") {
+		switch {
+		case strings.HasPrefix(line, "# branch.head "):
+			br := strings.TrimSpace(strings.TrimPrefix(line, "# branch.head "))
+			if br != "(detached)" {
+				info.Branch = br
+			}
+		case strings.HasPrefix(line, "# branch.ab "):
+			// format: "+<ahead> -<behind>"
+			parts := strings.Fields(strings.TrimPrefix(line, "# branch.ab "))
+			if len(parts) == 2 {
+				info.Ahead = atoi(strings.TrimPrefix(parts[0], "+"))
+				info.Behind = atoi(strings.TrimPrefix(parts[1], "-"))
+			}
+		case line != "" && !strings.HasPrefix(line, "#"):
+			info.Dirty = true
+		}
 	}
-	return strings.TrimSpace(buf.String()) != ""
-}
-
-func aheadBehind(repoRoot string) (int, int) {
-	// Best-effort. If no upstream or slow, return 0,0.
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Millisecond)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", "rev-list", "--left-right", "--count", "@{upstream}...HEAD")
-	cmd.Dir = repoRoot
-	out, err := cmd.Output()
-	if err != nil {
-		return 0, 0
-	}
-	parts := strings.Fields(strings.TrimSpace(string(out)))
-	if len(parts) != 2 {
-		return 0, 0
-	}
-	// Output is: behind ahead (left=upstream, right=HEAD)
-	behind := atoi(parts[0])
-	ahead := atoi(parts[1])
-	return ahead, behind
+	return info
 }
 
 func atoi(s string) int {
 	s = strings.TrimSpace(s)
-	if s == "" {
-		return 0
-	}
 	n := 0
 	for _, ch := range s {
 		if ch < '0' || ch > '9' {
@@ -148,7 +125,7 @@ func (i Info) String(branchMaxLen int, branchTail bool) string {
 		return ""
 	}
 	br := shortenBranch(i.Branch, branchMaxLen, branchTail)
-	b := " " + br
+	b := " " + br
 	if i.Dirty {
 		b += "*"
 	}
@@ -167,7 +144,6 @@ func shortenBranch(br string, maxLen int, tail bool) string {
 		return br
 	}
 	if tail {
-		// keep last path segment after /
 		if idx := strings.LastIndex(br, "/"); idx >= 0 && idx < len(br)-1 {
 			br = br[idx+1:]
 		}
@@ -178,7 +154,6 @@ func shortenBranch(br string, maxLen int, tail bool) string {
 	if len(br) <= maxLen {
 		return br
 	}
-	// simple end-truncation
 	if maxLen < 2 {
 		return br[:maxLen]
 	}

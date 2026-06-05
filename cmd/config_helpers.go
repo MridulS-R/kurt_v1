@@ -12,7 +12,7 @@ func loadConfigView() (prompt.ConfigView, string, error) {
 	}
 	cv := prompt.ConfigView{
 		Style:   cfg.Style,
-		TwoLine: cfg.Prompt.TwoLine,
+		TwoLine: cfg.Prompt.TwoLine == nil || *cfg.Prompt.TwoLine,
 		Order:   cfg.Modules.Order,
 
 		GitTTLms: cfg.Perf.GitTTLms,

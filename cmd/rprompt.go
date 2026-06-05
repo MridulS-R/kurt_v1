@@ -15,6 +15,7 @@ func rpromptCmd() *cobra.Command {
 	var cwd string
 	var status int
 	var durationMs int64
+	var noColor bool
 
 	c := &cobra.Command{
 		Use:   "rprompt",
@@ -31,7 +32,7 @@ func rpromptCmd() *cobra.Command {
 				CWD:        cwd,
 				StatusCode: status,
 				DurationMs: durationMs,
-				NoColor:    false,
+				NoColor:    noColor,
 				Config:     cfg,
 			})
 			if err != nil {
@@ -51,6 +52,7 @@ func rpromptCmd() *cobra.Command {
 	c.Flags().StringVar(&cwd, "cwd", "", "Current working directory")
 	c.Flags().IntVar(&status, "status", 0, "Last command exit code")
 	c.Flags().Int64Var(&durationMs, "duration-ms", 0, "Last command duration in ms")
+	c.Flags().BoolVar(&noColor, "no-color", false, "Disable ANSI colors")
 
 	_ = c.MarkFlagRequired("cwd")
 	return c
