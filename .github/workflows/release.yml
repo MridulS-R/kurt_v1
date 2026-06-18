@@ -1,0 +1,110 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build kurt_${{ matrix.goos }}_${{ matrix.goarch }}
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: '0'
+        run: |
+          mkdir -p dist
+          out="dist/kurt_${GOOS}_${GOARCH}"
+          go build -trimpath \
+            -ldflags "-s -w -X main.Version=${GITHUB_REF_NAME}" \
+            -o "$out" .
+          ls -la "$out"
+
+      - name: Generate sha256
+        shell: bash
+        run: |
+          cd dist
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "kurt_${{ matrix.goos }}_${{ matrix.goarch }}" \
+              > "kurt_${{ matrix.goos }}_${{ matrix.goarch }}.sha256"
+          else
+            shasum -a 256 "kurt_${{ matrix.goos }}_${{ matrix.goarch }}" \
+              > "kurt_${{ matrix.goos }}_${{ matrix.goarch }}.sha256"
+          fi
+          cat "kurt_${{ matrix.goos }}_${{ matrix.goarch }}.sha256"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kurt_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: |
+            dist/kurt_${{ matrix.goos }}_${{ matrix.goarch }}
+            dist/kurt_${{ matrix.goos }}_${{ matrix.goarch }}.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: publish release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Collect binaries and build checksums.txt
+        shell: bash
+        run: |
+          mkdir -p release
+          # Flatten: each artifact dir contains the binary + per-binary .sha256.
+          find artifacts -type f -name 'kurt_*' ! -name '*.sha256' \
+            -exec cp -v {} release/ \;
+          cd release
+          # Aggregate sha256 over all binaries (sorted for determinism).
+          sha256sum kurt_* | sort > checksums.txt
+          echo "---"
+          cat checksums.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            release/kurt_*
+            release/checksums.txt
