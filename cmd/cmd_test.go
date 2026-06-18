@@ -266,7 +266,7 @@ func TestExplainCmd_NoError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("explain cmd failed: %v", err)
 	}
-	if !strings.Contains(out, "style:") {
-		t.Errorf("expected 'style:' in explain output, got: %q", out)
+	if !strings.Contains(out, "Style") {
+		t.Errorf("expected 'Style' in explain output, got: %q", out)
 	}
 }

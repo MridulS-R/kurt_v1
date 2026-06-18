@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -96,45 +97,86 @@ Examples:
 			}
 
 			total := len(rows)
-			for i, row := range rows {
+
+			type workItem struct {
+				idx int
+				row []string
+			}
+			type result struct {
+				idx     int
+				outRow  []string
+				latency int64
+			}
+
+			processRow := func(idx int, row []string) result {
 				vars := map[string]string{}
 				for j, h := range headers {
 					if j < len(row) {
 						vars[h] = row[j]
 					}
 				}
-
 				rendered, err := prompts.Render(p.Template, "", vars)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "row %d: render error: %v\n", i+1, err)
-					outRow := append(row, "ERROR: "+err.Error(), "0")
-					_ = w.Write(outRow)
-					continue
+					return result{idx: idx, outRow: append(row, "ERROR: "+err.Error(), "0")}
 				}
-
 				msgs := []think.ChatMsg{{Role: "user", Content: rendered}}
 				var buf bytes.Buffer
 				start := time.Now()
 				streamErr := prov.ChatStream(msgs, &buf)
 				latency := time.Since(start).Milliseconds()
-
 				var output string
 				if streamErr != nil {
 					output = "ERROR: " + streamErr.Error()
 				} else {
 					output = strings.TrimSpace(buf.String())
 				}
-
-				outRow := append(row, output, fmt.Sprintf("%d", latency))
-				if err := w.Write(outRow); err != nil {
-					return err
-				}
-				w.Flush()
-
-				fmt.Fprintf(os.Stderr, "[%d/%d] %dms\n", i+1, total, latency)
+				return result{idx: idx, outRow: append(row, output, fmt.Sprintf("%d", latency)), latency: latency}
 			}
 
-			_ = concurrency // reserved for future parallel mode
+			results := make([]result, total)
+
+			if concurrency <= 1 {
+				for i, row := range rows {
+					res := processRow(i, row)
+					results[i] = res
+					fmt.Fprintf(os.Stderr, "[%d/%d] %dms\n", i+1, total, res.latency)
+				}
+			} else {
+				workers := concurrency
+				if workers > total {
+					workers = total
+				}
+				work := make(chan workItem, total)
+				for i, row := range rows {
+					work <- workItem{idx: i, row: row}
+				}
+				close(work)
+
+				var mu sync.Mutex
+				done := 0
+				var wg sync.WaitGroup
+				wg.Add(workers)
+				for range workers {
+					go func() {
+						defer wg.Done()
+						for item := range work {
+							res := processRow(item.idx, item.row)
+							mu.Lock()
+							results[item.idx] = res
+							done++
+							fmt.Fprintf(os.Stderr, "[%d/%d] %dms\n", done, total, res.latency)
+							mu.Unlock()
+						}
+					}()
+				}
+				wg.Wait()
+			}
+
+			for _, res := range results {
+				if err := w.Write(res.outRow); err != nil {
+					return err
+				}
+			}
 			w.Flush()
 			return w.Error()
 		},
@@ -146,7 +188,7 @@ Examples:
 	c.Flags().StringVar(&baseURL, "base-url", "", "API base URL override")
 	c.Flags().StringVar(&host, "host", "", "Ollama host override")
 	c.Flags().StringVar(&outputFile, "output", "", "Output CSV file (default: stdout)")
-	c.Flags().IntVar(&concurrency, "concurrency", 1, "Parallel workers (reserved)")
+	c.Flags().IntVar(&concurrency, "concurrency", 1, "Number of parallel LLM workers")
 	c.Flags().IntVar(&maxRows, "max-rows", 0, "Limit rows processed (0 = all)")
 	return c
 }

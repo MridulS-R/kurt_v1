@@ -111,8 +111,9 @@ Examples:
 
 			if !answer {
 				for i, h := range hits {
-					fmt.Printf("── %d  %s (chunk %d) ──\n%s\n\n",
-						i+1, h.Source, h.Index, h.Text)
+					pct := int(float32(100)*h.Score + 0.5)
+					fmt.Printf("── %d  score %d%%  %s (chunk %d) ──\n%s\n\n",
+						i+1, pct, h.Source, h.Index, h.Text)
 				}
 				return nil
 			}

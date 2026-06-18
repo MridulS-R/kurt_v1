@@ -25,6 +25,12 @@ type ChunkEntry struct {
 	Vec    []float32 `json:"vec"`
 }
 
+// SearchResult is a retrieved chunk with its similarity score.
+type SearchResult struct {
+	ChunkEntry
+	Score float32
+}
+
 // Meta holds collection metadata.
 type Meta struct {
 	Collection  string    `json:"collection"`
@@ -128,8 +134,8 @@ func IndexFiles(collection string, paths []string, embedder embed.Embedder, chun
 	return nil
 }
 
-// Search returns the top-k chunks most similar to query.
-func Search(collection string, queryVec []float32, topK int) ([]ChunkEntry, error) {
+// Search returns the top-k chunks most similar to query, with scores.
+func Search(collection string, queryVec []float32, topK int) ([]SearchResult, error) {
 	cpath, err := chunksPath(collection)
 	if err != nil {
 		return nil, err
@@ -174,9 +180,9 @@ func Search(collection string, queryVec []float32, topK int) ([]ChunkEntry, erro
 	if topK > len(best) {
 		topK = len(best)
 	}
-	out := make([]ChunkEntry, topK)
+	out := make([]SearchResult, topK)
 	for i := range out {
-		out[i] = best[i].entry
+		out[i] = SearchResult{ChunkEntry: best[i].entry, Score: best[i].score}
 	}
 	return out, nil
 }

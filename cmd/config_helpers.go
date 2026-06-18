@@ -1,9 +1,20 @@
 package cmd
 
 import (
+	"os"
+	"strings"
+
 	"kurt_v1/internal/config"
 	"kurt_v1/internal/prompt"
 )
+
+// getenvDefault returns the env var value, or def if the var is unset or whitespace-only.
+func getenvDefault(key, def string) string {
+	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
+		return v
+	}
+	return def
+}
 
 func loadConfigView() (prompt.ConfigView, string, error) {
 	cfg, path, err := config.Load()
