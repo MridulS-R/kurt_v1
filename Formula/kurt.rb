@@ -4,28 +4,28 @@
 # with the real release artifacts before the tap is usable.
 class Kurt < Formula
   desc "Fast, modular shell prompt and AI assistant CLI"
-  homepage "https://github.com/strk/kurt"
+  homepage "https://github.com/MridulS-R/kurt_v1"
   license "MIT"
   version "0.0.0"
 
   on_macos do
     on_arm do
-      url "https://github.com/strk/kurt/releases/download/v0.0.0/kurt_darwin_arm64"
+      url "https://github.com/MridulS-R/kurt_v1/releases/download/v0.0.0/kurt_darwin_arm64"
       sha256 "0000000000000000000000000000000000000000000000000000000000000000"
     end
     on_intel do
-      url "https://github.com/strk/kurt/releases/download/v0.0.0/kurt_darwin_amd64"
+      url "https://github.com/MridulS-R/kurt_v1/releases/download/v0.0.0/kurt_darwin_amd64"
       sha256 "0000000000000000000000000000000000000000000000000000000000000000"
     end
   end
 
   on_linux do
     on_arm do
-      url "https://github.com/strk/kurt/releases/download/v0.0.0/kurt_linux_arm64"
+      url "https://github.com/MridulS-R/kurt_v1/releases/download/v0.0.0/kurt_linux_arm64"
       sha256 "0000000000000000000000000000000000000000000000000000000000000000"
     end
     on_intel do
-      url "https://github.com/strk/kurt/releases/download/v0.0.0/kurt_linux_amd64"
+      url "https://github.com/MridulS-R/kurt_v1/releases/download/v0.0.0/kurt_linux_amd64"
       sha256 "0000000000000000000000000000000000000000000000000000000000000000"
     end
   end

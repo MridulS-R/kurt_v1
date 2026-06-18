@@ -31,7 +31,7 @@ func updateCmd() *cobra.Command {
 
 			rel, ok, err := fetchLatestRelease()
 			if err != nil || !ok {
-				fmt.Println("No releases found at github.com/strk/kurt — self-update not available.")
+				fmt.Println("No releases found at github.com/MridulS-R/kurt_v1 — self-update not available.")
 				return nil
 			}
 
@@ -120,7 +120,7 @@ type ghAsset struct {
 
 func fetchLatestRelease() (ghRelease, bool, error) {
 	client := &http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest(http.MethodGet, "https://api.github.com/repos/strk/kurt/releases/latest", nil)
+	req, err := http.NewRequest(http.MethodGet, "https://api.github.com/repos/MridulS-R/kurt_v1/releases/latest", nil)
 	if err != nil {
 		return ghRelease{}, false, err
 	}

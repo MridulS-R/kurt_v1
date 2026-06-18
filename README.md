@@ -13,7 +13,7 @@ A Starship-like, fast modular shell prompt (initially for zsh on macOS), with a 
 ### One-line install (recommended)
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/strk/kurt/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/MridulS-R/kurt_v1/main/install.sh | sh
 ```
 
 This downloads the latest release binary for your platform (macOS or Linux,
@@ -23,7 +23,7 @@ amd64 or arm64) and installs it to `/usr/local/bin/kurt` (or
 To pin a specific version:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/strk/kurt/main/install.sh | KURT_VERSION=v1.2.3 sh
+curl -fsSL https://raw.githubusercontent.com/MridulS-R/kurt_v1/main/install.sh | KURT_VERSION=v1.2.3 sh
 ```
 
 ### Homebrew (macOS / Linux)
@@ -35,7 +35,7 @@ brew install strk/tap/kurt
 ### From source
 
 ```sh
-git clone https://github.com/strk/kurt.git
+git clone https://github.com/MridulS-R/kurt_v1.git
 cd kurt
 go build -o kurt .
 ```

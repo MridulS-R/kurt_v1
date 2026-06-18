@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # kurt installer
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/strk/kurt/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/MridulS-R/kurt_v1/main/install.sh | sh
 #
 # Environment variables:
 #   KURT_VERSION  Tag to install (e.g. v1.2.3). Defaults to "latest".
@@ -10,7 +10,7 @@
 
 set -eu
 
-REPO="strk/kurt"
+REPO="MridulS-R/kurt_v1"
 BIN_NAME="kurt"
 VERSION="${KURT_VERSION:-latest}"
 
