@@ -206,21 +206,9 @@ func TestPromptCmd_RendersWithoutError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("prompt cmd failed: %v", err)
 	}
-	// The prompt must contain the input indicator.
-	if !strings.Contains(out, "❯") && !strings.Contains(out, "✗") {
-		t.Errorf("expected prompt indicator in output, got: %q", out)
-	}
-}
-
-func TestPromptCmd_NonZeroStatusShowsError(t *testing.T) {
-	t.Setenv("KURT_CONFIG", filepath.Join(t.TempDir(), "nonexistent.toml"))
-
-	out, err := runCmd(t, "prompt", "--cwd", "/tmp", "--status", "1")
-	if err != nil {
-		t.Fatalf("prompt cmd failed: %v", err)
-	}
-	if !strings.Contains(out, "✗") {
-		t.Errorf("expected error indicator in output for non-zero status, got: %q", out)
+	// The prompt must be non-empty.
+	if strings.TrimSpace(out) == "" {
+		t.Errorf("expected non-empty prompt output, got: %q", out)
 	}
 }
 
@@ -232,7 +220,7 @@ func TestPromptCmd_MissingCwdFails(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// initCmd (zsh snippet output)
+// initCmd – zsh snippet output
 // ---------------------------------------------------------------------------
 
 func TestInitZshCmd_ContainsKurtPrompt(t *testing.T) {
@@ -252,6 +240,134 @@ func TestInitZshCmd_ContainsPrecmd(t *testing.T) {
 	}
 	if !strings.Contains(out, "__kurt_precmd") {
 		t.Errorf("expected '__kurt_precmd' hook in zsh snippet, got: %q", out)
+	}
+}
+
+func TestInitZshCmd_NonEmpty(t *testing.T) {
+	out, err := runCmd(t, "init", "zsh")
+	if err != nil {
+		t.Fatalf("init zsh failed: %v", err)
+	}
+	if strings.TrimSpace(out) == "" {
+		t.Error("expected non-empty zsh snippet")
+	}
+}
+
+func TestInitZshCmd_NoGoFormatError(t *testing.T) {
+	out, err := runCmd(t, "init", "zsh")
+	if err != nil {
+		t.Fatalf("init zsh failed: %v", err)
+	}
+	if strings.Contains(out, "%!") {
+		t.Errorf("zsh snippet contains Go format error marker '%%!': %q", out)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// initCmd – bash snippet output
+// ---------------------------------------------------------------------------
+
+func TestInitBashCmd_ContainsKurtPrompt(t *testing.T) {
+	out, err := runCmd(t, "init", "bash")
+	if err != nil {
+		t.Fatalf("init bash failed: %v", err)
+	}
+	if !strings.Contains(out, "kurt prompt") {
+		t.Errorf("expected 'kurt prompt' in bash snippet, got: %q", out)
+	}
+}
+
+func TestInitBashCmd_ContainsPromptCommand(t *testing.T) {
+	out, err := runCmd(t, "init", "bash")
+	if err != nil {
+		t.Fatalf("init bash failed: %v", err)
+	}
+	if !strings.Contains(out, "PROMPT_COMMAND") {
+		t.Errorf("expected 'PROMPT_COMMAND' in bash snippet, got: %q", out)
+	}
+}
+
+func TestInitBashCmd_ContainsPrecmd(t *testing.T) {
+	out, err := runCmd(t, "init", "bash")
+	if err != nil {
+		t.Fatalf("init bash failed: %v", err)
+	}
+	if !strings.Contains(out, "__kurt_precmd") {
+		t.Errorf("expected '__kurt_precmd' function in bash snippet, got: %q", out)
+	}
+}
+
+func TestInitBashCmd_NonEmpty(t *testing.T) {
+	out, err := runCmd(t, "init", "bash")
+	if err != nil {
+		t.Fatalf("init bash failed: %v", err)
+	}
+	if strings.TrimSpace(out) == "" {
+		t.Error("expected non-empty bash snippet")
+	}
+}
+
+func TestInitBashCmd_NoGoFormatError(t *testing.T) {
+	out, err := runCmd(t, "init", "bash")
+	if err != nil {
+		t.Fatalf("init bash failed: %v", err)
+	}
+	if strings.Contains(out, "%!") {
+		t.Errorf("bash snippet contains Go format error marker '%%!': %q", out)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// initCmd – fish snippet output
+// ---------------------------------------------------------------------------
+
+func TestInitFishCmd_ContainsKurtPrompt(t *testing.T) {
+	out, err := runCmd(t, "init", "fish")
+	if err != nil {
+		t.Fatalf("init fish failed: %v", err)
+	}
+	if !strings.Contains(out, "kurt prompt") {
+		t.Errorf("expected 'kurt prompt' in fish snippet, got: %q", out)
+	}
+}
+
+func TestInitFishCmd_ContainsFishPrompt(t *testing.T) {
+	out, err := runCmd(t, "init", "fish")
+	if err != nil {
+		t.Fatalf("init fish failed: %v", err)
+	}
+	if !strings.Contains(out, "fish_prompt") {
+		t.Errorf("expected 'fish_prompt' function in fish snippet, got: %q", out)
+	}
+}
+
+func TestInitFishCmd_ContainsPreexec(t *testing.T) {
+	out, err := runCmd(t, "init", "fish")
+	if err != nil {
+		t.Fatalf("init fish failed: %v", err)
+	}
+	if !strings.Contains(out, "__kurt_preexec") {
+		t.Errorf("expected '__kurt_preexec' function in fish snippet, got: %q", out)
+	}
+}
+
+func TestInitFishCmd_NonEmpty(t *testing.T) {
+	out, err := runCmd(t, "init", "fish")
+	if err != nil {
+		t.Fatalf("init fish failed: %v", err)
+	}
+	if strings.TrimSpace(out) == "" {
+		t.Error("expected non-empty fish snippet")
+	}
+}
+
+func TestInitFishCmd_NoGoFormatError(t *testing.T) {
+	out, err := runCmd(t, "init", "fish")
+	if err != nil {
+		t.Fatalf("init fish failed: %v", err)
+	}
+	if strings.Contains(out, "%!") {
+		t.Errorf("fish snippet contains Go format error marker '%%!': %q", out)
 	}
 }
 

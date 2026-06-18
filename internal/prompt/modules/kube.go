@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -8,11 +9,14 @@ import (
 )
 
 // KubeModule shows the current kubectl context from ~/.kube/config.
-type KubeModule struct{}
+// ShowNamespace: if true, appends "/namespace" to the context name.
+type KubeModule struct {
+	ShowNamespace bool
+}
 
 func (KubeModule) Name() string { return "kube" }
 
-func (KubeModule) Render(ctx Context) (string, bool) {
+func (m KubeModule) Render(ctx Context) (string, bool) {
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if kubeconfig == "" {
 		home, err := os.UserHomeDir()
@@ -29,9 +33,23 @@ func (KubeModule) Render(ctx Context) (string, bool) {
 
 	var kc struct {
 		CurrentContext string `yaml:"current-context"`
+		Contexts       []struct {
+			Name    string `yaml:"name"`
+			Context struct {
+				Namespace string `yaml:"namespace"`
+			} `yaml:"context"`
+		} `yaml:"contexts"`
 	}
 	if err := yaml.Unmarshal(b, &kc); err != nil || kc.CurrentContext == "" {
 		return "", false
+	}
+
+	if m.ShowNamespace {
+		for _, c := range kc.Contexts {
+			if c.Name == kc.CurrentContext && c.Context.Namespace != "" {
+				return fmt.Sprintf("⎈ %s/%s", kc.CurrentContext, c.Context.Namespace), true
+			}
+		}
 	}
 
 	return "⎈ " + kc.CurrentContext, true
