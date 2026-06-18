@@ -39,6 +39,8 @@ func Execute() {
 	root.AddCommand(configCmd())
 	root.AddCommand(cacheCmd())
 	root.AddCommand(diffCmd())
+	root.AddCommand(doctorCmd())
+	root.AddCommand(updateCmd())
 
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
