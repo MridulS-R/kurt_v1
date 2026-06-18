@@ -7,12 +7,14 @@ type Context struct {
 	DurationMs      int64
 	DurationMinMs   int64
 	GitTTLms        int64
+	GpuTTLms        int64
 	DirMaxDepth     int
 	DirTruncateMid  bool
 	GitBranchMaxLen int
 	GitBranchTail   bool
 	ExitCompact     bool
 	NoColor         bool
+	TimeFormat      string
 }
 
 type Module interface {

@@ -9,14 +9,18 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"kurt_v1/internal/cost"
 )
 
 // OpenAIProvider works with any OpenAI-compatible chat completions API.
 // This covers: OpenAI, Groq, Together, OpenRouter, LM Studio, and more.
 type OpenAIProvider struct {
-	BaseURL string
-	APIKey  string
-	Model   string
+	BaseURL      string
+	APIKey       string
+	Model        string
+	ProviderName string // used for cost attribution
+	MaxTokens    int    // 0 = provider default
 }
 
 type oaiMessage struct {
@@ -24,10 +28,16 @@ type oaiMessage struct {
 	Content string `json:"content"`
 }
 
+type oaiStreamOptions struct {
+	IncludeUsage bool `json:"include_usage"`
+}
+
 type oaiRequest struct {
-	Model    string       `json:"model"`
-	Messages []oaiMessage `json:"messages"`
-	Stream   bool         `json:"stream"`
+	Model         string            `json:"model"`
+	Messages      []oaiMessage      `json:"messages"`
+	Stream        bool              `json:"stream"`
+	StreamOptions *oaiStreamOptions `json:"stream_options,omitempty"`
+	MaxTokens     *int              `json:"max_tokens,omitempty"`
 }
 
 type oaiStreamChunk struct {
@@ -37,6 +47,10 @@ type oaiStreamChunk struct {
 		} `json:"delta"`
 		FinishReason *string `json:"finish_reason"`
 	} `json:"choices"`
+	Usage *struct {
+		PromptTokens     int `json:"prompt_tokens"`
+		CompletionTokens int `json:"completion_tokens"`
+	} `json:"usage"`
 }
 
 // ChatStream sends a full conversation history and streams the next reply.
@@ -54,11 +68,16 @@ func (p *OpenAIProvider) ThinkStream(ctx Context, question string, w io.Writer) 
 }
 
 func (p *OpenAIProvider) doStream(msgs []oaiMessage, w io.Writer) error {
-	reqBody, _ := json.Marshal(oaiRequest{
-		Model:    p.Model,
-		Messages: msgs,
-		Stream:   true,
-	})
+	oaiReq := oaiRequest{
+		Model:         p.Model,
+		Messages:      msgs,
+		Stream:        true,
+		StreamOptions: &oaiStreamOptions{IncludeUsage: true},
+	}
+	if p.MaxTokens > 0 {
+		oaiReq.MaxTokens = &p.MaxTokens
+	}
+	reqBody, _ := json.Marshal(oaiReq)
 
 	base := strings.TrimRight(p.BaseURL, "/")
 	req, err := http.NewRequest("POST", base+"/chat/completions", bytes.NewReader(reqBody))
@@ -84,6 +103,7 @@ func (p *OpenAIProvider) doStream(msgs []oaiMessage, w io.Writer) error {
 
 	// OpenAI SSE format: "data: {json}\n\n", terminated by "data: [DONE]\n\n"
 	scanner := bufio.NewScanner(resp.Body)
+	var promptTokens, completionTokens int
 	for scanner.Scan() {
 		line := scanner.Text()
 		if !strings.HasPrefix(line, "data: ") {
@@ -100,7 +120,16 @@ func (p *OpenAIProvider) doStream(msgs []oaiMessage, w io.Writer) error {
 		for _, choice := range chunk.Choices {
 			fmt.Fprint(w, choice.Delta.Content)
 		}
+		if chunk.Usage != nil {
+			promptTokens = chunk.Usage.PromptTokens
+			completionTokens = chunk.Usage.CompletionTokens
+		}
 	}
 	fmt.Fprintln(w)
+	provider := p.ProviderName
+	if provider == "" {
+		provider = "openai-compat"
+	}
+	cost.Log(provider, p.Model, promptTokens, completionTokens)
 	return scanner.Err()
 }

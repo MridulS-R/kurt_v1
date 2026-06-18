@@ -126,6 +126,27 @@ type ModuleOpts struct {
 	Git      BasicModule `toml:"git"`
 	Exit     BasicModule `toml:"exit"`
 	Duration DurationMod `toml:"duration"`
+	Gpu      GpuMod      `toml:"gpu"`
+	Venv     BasicModule `toml:"venv"`
+	Conda    BasicModule `toml:"conda"`
+	Node     BasicModule `toml:"node"`
+	Kube     BasicModule `toml:"kube"`
+	Battery  BasicModule `toml:"battery"`
+	Python   BasicModule `toml:"python"`
+	Cloud    BasicModule `toml:"cloud"`
+	Time     TimeMod     `toml:"time"`
+}
+
+type TimeMod struct {
+	Enabled *bool  `toml:"enabled"`
+	Format  string `toml:"format"`
+	Color   *int   `toml:"color"`
+}
+
+type GpuMod struct {
+	Enabled *bool  `toml:"enabled"`
+	TTLms   *int64 `toml:"ttl_ms"`
+	Color   *int   `toml:"color"`
 }
 
 type BasicModule struct {

@@ -34,6 +34,8 @@ type ProviderConfig struct {
 	BaseURL string
 	// Host is the Ollama server address (ollama only).
 	Host string
+	// MaxTokens caps the response length (0 = provider default).
+	MaxTokens int
 }
 
 // named provider defaults
@@ -93,7 +95,7 @@ func New(cfg ProviderConfig) (Provider, error) {
 		if model == "" {
 			model = envOr("KURT_OLLAMA_MODEL", "qwen2.5:7b-instruct")
 		}
-		return &OllamaClient{Host: host, Model: model}, nil
+		return &OllamaClient{Host: host, Model: model, MaxTokens: cfg.MaxTokens}, nil
 	}
 
 	if name == "anthropic" {
@@ -103,7 +105,7 @@ func New(cfg ProviderConfig) (Provider, error) {
 		if apiKey == "" {
 			return nil, fmt.Errorf("anthropic: set %s environment variable", d.apiKeyEnv)
 		}
-		return &AnthropicProvider{APIKey: apiKey, Model: model}, nil
+		return &AnthropicProvider{APIKey: apiKey, Model: model, MaxTokens: cfg.MaxTokens}, nil
 	}
 
 	// OpenAI + all OpenAI-compatible providers (groq, together, openrouter, lmstudio, openai-compat)
@@ -134,7 +136,7 @@ func New(cfg ProviderConfig) (Provider, error) {
 			return nil, fmt.Errorf("%s: set %s environment variable", name, d.apiKeyEnv)
 		}
 	}
-	return &OpenAIProvider{BaseURL: baseURL, APIKey: apiKey, Model: model}, nil
+	return &OpenAIProvider{BaseURL: baseURL, APIKey: apiKey, Model: model, ProviderName: name, MaxTokens: cfg.MaxTokens}, nil
 }
 
 func envOr(key, def string) string {

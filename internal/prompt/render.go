@@ -32,12 +32,14 @@ func Render(a RenderArgs) (string, RenderInfo, error) {
 		DurationMs:      a.DurationMs,
 		DurationMinMs:   a.Config.DurationMinMs,
 		GitTTLms:        a.Config.GitTTLms,
+		GpuTTLms:        a.Config.GpuTTLms,
 		DirMaxDepth:     a.Config.DirMaxDepth,
 		DirTruncateMid:  a.Config.DirTruncateMid,
 		GitBranchMaxLen: a.Config.GitBranchMaxLen,
 		GitBranchTail:   a.Config.GitBranchTail,
 		ExitCompact:     a.Config.ExitCompact,
 		NoColor:         a.NoColor,
+		TimeFormat:      a.Config.TimeFormat,
 	}
 
 	parts := make([]string, 0, len(mods))
@@ -76,6 +78,24 @@ func Render(a RenderArgs) (string, RenderInfo, error) {
 					fg = a.Config.FgDuration
 				case "exit":
 					fg = a.Config.FgExit
+				case "gpu":
+					fg = a.Config.FgGpu
+				case "venv":
+					fg = a.Config.FgVenv
+				case "conda":
+					fg = a.Config.FgConda
+				case "node":
+					fg = a.Config.FgNode
+				case "kube":
+					fg = a.Config.FgKube
+				case "battery":
+					fg = a.Config.FgBattery
+				case "python":
+					fg = a.Config.FgPython
+				case "cloud":
+					fg = a.Config.FgCloud
+				case "time":
+					fg = a.Config.FgTime
 				}
 				if fg > 0 {
 					seg = fmt.Sprintf("\x1b[38;5;%dm%s\x1b[0m", fg, seg)

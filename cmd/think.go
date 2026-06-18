@@ -2,13 +2,16 @@ package cmd
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"kurt_v1/internal/config"
+	"kurt_v1/internal/session"
 	"kurt_v1/internal/think"
 )
 
@@ -23,6 +26,8 @@ func thinkCmd() *cobra.Command {
 	var includeGitLog bool
 	var includeEnv bool
 	var cwd string
+	var maxTokens int
+	var sessionID string
 
 	c := &cobra.Command{
 		Use:   "think [question]",
@@ -56,13 +61,19 @@ Examples:
 			resolvedHost := firstOf(host, cfg.Think.Host)
 
 			p, err := think.New(think.ProviderConfig{
-				Name:    providerName,
-				Model:   resolvedModel,
-				BaseURL: resolvedBaseURL,
-				Host:    resolvedHost,
+				Name:      providerName,
+				Model:     resolvedModel,
+				BaseURL:   resolvedBaseURL,
+				Host:      resolvedHost,
+				MaxTokens: maxTokens,
 			})
 			if err != nil {
 				return fmt.Errorf("provider: %w", err)
+			}
+
+			// If a session is specified, use it for history
+			if sessionID != "" {
+				return runThinkWithSession(p, sessionID, strings.TrimSpace(strings.Join(args, " ")))
 			}
 
 			buildCtx := func() think.Context {
@@ -124,7 +135,71 @@ Examples:
 	c.Flags().BoolVar(&includeGitLog, "git-log", true, "Include recent git commits")
 	c.Flags().BoolVar(&includeEnv, "env", true, "Include relevant env vars")
 	c.Flags().StringVar(&cwd, "cwd", "", "Working directory context (defaults to current)")
+	c.Flags().IntVar(&maxTokens, "max-tokens", 0, "Max response tokens (0 = provider default)")
+	c.Flags().StringVar(&sessionID, "session", "", "Continue a named session (keeps conversation history)")
 	return c
+}
+
+// runThinkWithSession loads session history, sends the question, appends both turns.
+func runThinkWithSession(p think.Provider, sessionID, question string) error {
+	meta, err := session.Load(sessionID)
+	if err != nil {
+		return fmt.Errorf("session %q: %w", sessionID, err)
+	}
+
+	history, err := session.History(meta.ID)
+	if err != nil {
+		return err
+	}
+
+	msgs := make([]think.ChatMsg, 0, len(history)+1)
+	for _, h := range history {
+		msgs = append(msgs, think.ChatMsg{Role: h.Role, Content: h.Content})
+	}
+
+	if question == "" {
+		// Interactive mode with session history
+		scanner := bufio.NewScanner(os.Stdin)
+		fmt.Fprintf(os.Stderr, "kurt think [session: %s] — Ctrl-C to exit\n", meta.ID)
+		for {
+			fmt.Fprint(os.Stderr, "kurt> ")
+			if !scanner.Scan() {
+				break
+			}
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" {
+				continue
+			}
+			if line == "/exit" || line == "/quit" {
+				break
+			}
+			msgs = append(msgs, think.ChatMsg{Role: "user", Content: line})
+			_ = session.Append(meta.ID, session.Message{Role: "user", Content: line})
+
+			var buf bytes.Buffer
+			if err := p.ChatStream(msgs, io.MultiWriter(os.Stdout, &buf)); err != nil {
+				fmt.Fprintln(os.Stderr, "error:", err)
+				msgs = msgs[:len(msgs)-1]
+				continue
+			}
+			reply := strings.TrimSpace(buf.String())
+			msgs = append(msgs, think.ChatMsg{Role: "assistant", Content: reply})
+			_ = session.Append(meta.ID, session.Message{Role: "assistant", Content: reply})
+		}
+		return nil
+	}
+
+	// Single-shot with session context
+	msgs = append(msgs, think.ChatMsg{Role: "user", Content: question})
+	_ = session.Append(meta.ID, session.Message{Role: "user", Content: question})
+
+	var buf bytes.Buffer
+	if err := p.ChatStream(msgs, io.MultiWriter(os.Stdout, &buf)); err != nil {
+		return err
+	}
+	reply := strings.TrimSpace(buf.String())
+	_ = session.Append(meta.ID, session.Message{Role: "assistant", Content: reply})
+	return nil
 }
 
 // firstOf returns the first non-empty string from the list.

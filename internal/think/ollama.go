@@ -9,22 +9,32 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"kurt_v1/internal/cost"
 )
 
 type OllamaClient struct {
-	Host  string
-	Model string
+	Host      string
+	Model     string
+	MaxTokens int // 0 = no limit
 }
 
 type generateReq struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-	Stream bool   `json:"stream"`
+	Model   string `json:"model"`
+	Prompt  string `json:"prompt"`
+	Stream  bool   `json:"stream"`
+	Options *ollamaOptions `json:"options,omitempty"`
+}
+
+type ollamaOptions struct {
+	NumPredict int `json:"num_predict,omitempty"`
 }
 
 type generateResp struct {
-	Response string `json:"response"`
-	Done     bool   `json:"done"`
+	Response        string `json:"response"`
+	Done            bool   `json:"done"`
+	PromptEvalCount int    `json:"prompt_eval_count"`
+	EvalCount       int    `json:"eval_count"`
 }
 
 func (c OllamaClient) host() string {
@@ -111,9 +121,12 @@ func (c OllamaClient) ChatStream(messages []ChatMsg, w io.Writer) error {
 		Message struct {
 			Content string `json:"content"`
 		} `json:"message"`
-		Done bool `json:"done"`
+		Done            bool `json:"done"`
+		PromptEvalCount int  `json:"prompt_eval_count"`
+		EvalCount       int  `json:"eval_count"`
 	}
 	scanner := bufio.NewScanner(resp.Body)
+	var promptEval, eval int
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
@@ -125,17 +138,24 @@ func (c OllamaClient) ChatStream(messages []ChatMsg, w io.Writer) error {
 		}
 		fmt.Fprint(w, cr.Message.Content)
 		if cr.Done {
+			promptEval = cr.PromptEvalCount
+			eval = cr.EvalCount
 			break
 		}
 	}
 	fmt.Fprintln(w)
+	cost.Log("ollama", c.model(), promptEval, eval)
 	return scanner.Err()
 }
 
 // ThinkStream streams tokens to w (implements Provider).
 func (c OllamaClient) ThinkStream(ctx Context, question string, w io.Writer) error {
 	prompt := BuildPrompt(ctx, question)
-	body, _ := json.Marshal(generateReq{Model: c.model(), Prompt: prompt, Stream: true})
+	greq := generateReq{Model: c.model(), Prompt: prompt, Stream: true}
+	if c.MaxTokens > 0 {
+		greq.Options = &ollamaOptions{NumPredict: c.MaxTokens}
+	}
+	body, _ := json.Marshal(greq)
 
 	req, err := http.NewRequest("POST", c.host()+"/api/generate", bytes.NewReader(body))
 	if err != nil {
@@ -156,6 +176,7 @@ func (c OllamaClient) ThinkStream(ctx Context, question string, w io.Writer) err
 	}
 
 	scanner := bufio.NewScanner(resp.Body)
+	var promptEval2, eval2 int
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
@@ -167,9 +188,12 @@ func (c OllamaClient) ThinkStream(ctx Context, question string, w io.Writer) err
 		}
 		fmt.Fprint(w, gr.Response)
 		if gr.Done {
+			promptEval2 = gr.PromptEvalCount
+			eval2 = gr.EvalCount
 			break
 		}
 	}
 	fmt.Fprintln(w)
+	cost.Log("ollama", c.model(), promptEval2, eval2)
 	return scanner.Err()
 }

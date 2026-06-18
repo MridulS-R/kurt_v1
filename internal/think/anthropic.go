@@ -9,12 +9,15 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"kurt_v1/internal/cost"
 )
 
 // AnthropicProvider connects to the Anthropic Messages API.
 type AnthropicProvider struct {
-	APIKey string
-	Model  string
+	APIKey    string
+	Model     string
+	MaxTokens int // 0 = use default (2048)
 }
 
 const anthropicBaseURL = "https://api.anthropic.com"
@@ -27,17 +30,20 @@ type anthRequest struct {
 	Stream    bool         `json:"stream"`
 }
 
-// Anthropic SSE events we care about:
-// event: content_block_delta
-// data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"..."}}
-// event: message_stop
-
 type anthStreamData struct {
-	Type  string `json:"type"`
-	Delta struct {
+	Type    string `json:"type"`
+	Delta   struct {
 		Type string `json:"type"`
 		Text string `json:"text"`
 	} `json:"delta"`
+	Message struct {
+		Usage struct {
+			InputTokens int `json:"input_tokens"`
+		} `json:"usage"`
+	} `json:"message"`
+	Usage struct {
+		OutputTokens int `json:"output_tokens"`
+	} `json:"usage"`
 }
 
 // ChatStream sends a full conversation history and streams the next reply.
@@ -59,9 +65,13 @@ func (p *AnthropicProvider) ThinkStream(ctx Context, question string, w io.Write
 }
 
 func (p *AnthropicProvider) doStream(msgs []oaiMessage, w io.Writer) error {
+	maxTok := p.MaxTokens
+	if maxTok <= 0 {
+		maxTok = 2048
+	}
 	reqBody, _ := json.Marshal(anthRequest{
 		Model:     p.Model,
-		MaxTokens: 2048,
+		MaxTokens: maxTok,
 		Messages:  msgs,
 		Stream:    true,
 	})
@@ -89,6 +99,7 @@ func (p *AnthropicProvider) doStream(msgs []oaiMessage, w io.Writer) error {
 	// Anthropic SSE: interleaved "event:" and "data:" lines.
 	scanner := bufio.NewScanner(resp.Body)
 	var lastEvent string
+	var inputTokens, outputTokens int
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "event: ") {
@@ -101,18 +112,23 @@ func (p *AnthropicProvider) doStream(msgs []oaiMessage, w io.Writer) error {
 		if lastEvent == "message_stop" {
 			break
 		}
-		if lastEvent != "content_block_delta" {
-			continue
-		}
 		payload := strings.TrimPrefix(line, "data: ")
 		var d anthStreamData
-		if err := json.Unmarshal([]byte(payload), &d); err != nil {
+		if json.Unmarshal([]byte(payload), &d) != nil {
 			continue
 		}
-		if d.Delta.Type == "text_delta" {
-			fmt.Fprint(w, d.Delta.Text)
+		switch lastEvent {
+		case "message_start":
+			inputTokens = d.Message.Usage.InputTokens
+		case "message_delta":
+			outputTokens = d.Usage.OutputTokens
+		case "content_block_delta":
+			if d.Delta.Type == "text_delta" {
+				fmt.Fprint(w, d.Delta.Text)
+			}
 		}
 	}
 	fmt.Fprintln(w)
+	cost.Log("anthropic", p.Model, inputTokens, outputTokens)
 	return scanner.Err()
 }

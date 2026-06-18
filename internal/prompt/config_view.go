@@ -13,12 +13,14 @@ type ConfigView struct {
 
 	// Performance knobs
 	GitTTLms int64
+	GpuTTLms int64
 
 	// Minimal style colors (ANSI 256 fg)
 	FgDir      int
 	FgGit      int
 	FgDuration int
 	FgExit     int
+	FgGpu      int
 
 	// Readability
 	DirMaxDepth     int
@@ -36,6 +38,25 @@ type ConfigView struct {
 	EnableGit      bool
 	EnableDuration bool
 	EnableExit     bool
+	EnableGpu      bool
+	EnableVenv     bool
+	EnableConda    bool
+	EnableNode     bool
+	EnableKube     bool
+	EnableBattery  bool
+	EnablePython   bool
+	EnableCloud    bool
+	EnableTime     bool
+
+	FgVenv    int
+	FgConda   int
+	FgNode    int
+	FgKube    int
+	FgBattery int
+	FgPython  int
+	FgCloud   int
+	FgTime    int
+	TimeFormat string
 
 	DurationMinMs int64
 	Powerline     PowerlinePalette
@@ -79,6 +100,24 @@ func (c ConfigView) Enabled(name string) bool {
 		return c.EnableDuration
 	case "exit":
 		return c.EnableExit
+	case "gpu":
+		return c.EnableGpu
+	case "venv":
+		return c.EnableVenv
+	case "conda":
+		return c.EnableConda
+	case "node":
+		return c.EnableNode
+	case "kube":
+		return c.EnableKube
+	case "battery":
+		return c.EnableBattery
+	case "python":
+		return c.EnablePython
+	case "cloud":
+		return c.EnableCloud
+	case "time":
+		return c.EnableTime
 	default:
 		return false
 	}

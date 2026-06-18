@@ -13,7 +13,102 @@ func initCmd() *cobra.Command {
 	}
 
 	c.AddCommand(initZshCmd())
+	c.AddCommand(initBashCmd())
+	c.AddCommand(initFishCmd())
 	return c
+}
+
+func initBashCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "bash",
+		Short: "Print bash snippet for PROMPT_COMMAND integration",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("%s", `# kurt prompt init for bash
+# Add this to your ~/.bashrc or ~/.bash_profile
+
+__kurt_last_cmd=""
+__kurt_cmd_start_ms=0
+
+__kurt_preexec() {
+  __kurt_last_cmd="$BASH_COMMAND"
+  __kurt_cmd_start_ms=$(date +%s%3N 2>/dev/null || echo 0)
+}
+trap '__kurt_preexec' DEBUG
+
+__kurt_precmd() {
+  local exit_code=$?
+  local now_ms
+  now_ms=$(date +%s%3N 2>/dev/null || echo 0)
+  local dur_ms=$(( now_ms - __kurt_cmd_start_ms ))
+
+  export KURT_LAST_EXIT=$exit_code
+  export KURT_LAST_DURATION_MS=$dur_ms
+
+  if [[ $exit_code -ne 0 && -n "$__kurt_last_cmd" ]]; then
+    kurt log-failure --exit $exit_code --cwd "$PWD" "$__kurt_last_cmd" >/dev/null 2>&1 &
+  fi
+
+  if [[ -n "$__kurt_last_cmd" ]]; then
+    kurt log-cmd --exit $exit_code --cwd "$PWD" --duration-ms $dur_ms "$__kurt_last_cmd" >/dev/null 2>&1 &
+  fi
+
+  local p
+  p=$(kurt prompt --shell bash --cwd "$PWD" --status $exit_code --duration-ms $dur_ms 2>/dev/null)
+  PS1="$p"
+  __kurt_last_cmd=""
+}
+
+PROMPT_COMMAND="__kurt_precmd"
+`)
+		},
+	}
+}
+
+func initFishCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "fish",
+		Short: "Print fish functions for prompt integration",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("%s", `# kurt prompt init for fish
+# Save to ~/.config/fish/conf.d/kurt.fish
+
+set -g __kurt_cmd_start_ms 0
+set -g __kurt_last_cmd ""
+
+function __kurt_preexec --on-event fish_preexec
+    set __kurt_last_cmd $argv[1]
+    set __kurt_cmd_start_ms (date +%s%3N 2>/dev/null; or echo 0)
+end
+
+function fish_prompt
+    set -l exit_code $status
+    set -l now_ms (date +%s%3N 2>/dev/null; or echo 0)
+    set -l dur_ms (math $now_ms - $__kurt_cmd_start_ms)
+
+    if test $exit_code -ne 0; and test -n "$__kurt_last_cmd"
+        kurt log-failure --exit $exit_code --cwd (pwd) "$__kurt_last_cmd" >/dev/null 2>&1 &
+    end
+
+    if test -n "$__kurt_last_cmd"
+        kurt log-cmd --exit $exit_code --cwd (pwd) --duration-ms $dur_ms "$__kurt_last_cmd" >/dev/null 2>&1 &
+    end
+
+    set __kurt_last_cmd ""
+    kurt prompt --shell fish --cwd (pwd) --status $exit_code --duration-ms $dur_ms 2>/dev/null
+end
+
+function fish_right_prompt
+    kurt rprompt --shell fish --cwd (pwd) --status $status 2>/dev/null
+end
+
+# Inline suggestion (fish has native autosuggestions; kurt suggest can feed them)
+# Uncomment to override fish's built-in suggestions with kurt suggest:
+# function fish_command_not_found
+#     echo "kurt: command not found: $argv"
+# end
+`)
+		},
+	}
 }
 
 func initZshCmd() *cobra.Command {
@@ -49,9 +144,14 @@ function __kurt_precmd() {
   export __KURT_LAST_EXIT=$exit_code
   export __KURT_LAST_DURATION_MS=$dur_ms
 
-  # Log failures in the background so kurt think can learn from them.
+  # Log failures so kurt think can learn from them.
   if [[ $exit_code -ne 0 && -n "$__KURT_LAST_CMD" ]]; then
     kurt log-failure --exit $exit_code --cwd "$PWD" "$__KURT_LAST_CMD" &>/dev/null &!
+  fi
+
+  # Log all commands for kurt recall (shell memory).
+  if [[ -n "$__KURT_LAST_CMD" ]]; then
+    kurt log-cmd --exit $exit_code --cwd "$PWD" --duration-ms $dur_ms "$__KURT_LAST_CMD" &>/dev/null &!
   fi
 
   # Prompt: first line context, second line input
