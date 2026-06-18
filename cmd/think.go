@@ -2,31 +2,81 @@ package cmd
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
 
+	"kurt_v1/internal/config"
+	"kurt_v1/internal/session"
 	"kurt_v1/internal/think"
 )
 
 func thinkCmd() *cobra.Command {
-	var host string
+	var provider string
 	var model string
+	var baseURL string
+	var host string
 	var includeLast bool
 	var includeGit bool
+	var includeFailures bool
+	var includeGitLog bool
+	var includeEnv bool
 	var cwd string
+	var maxTokens int
+	var sessionID string
 
 	c := &cobra.Command{
 		Use:   "think [question]",
-		Short: "Ask an AI helper (Ollama-first) with optional local context",
+		Short: "Ask an AI assistant with rich local context",
+		Long: `Ask an AI assistant about your current shell environment.
+
+Supported providers (set with --provider or KURT_PROVIDER):
+  ollama       Local Ollama server (default)
+  openai       OpenAI API          — needs OPENAI_API_KEY
+  anthropic    Anthropic Claude    — needs ANTHROPIC_API_KEY
+  groq         Groq (fast)         — needs GROQ_API_KEY
+  together     Together AI         — needs TOGETHER_API_KEY
+  openrouter   OpenRouter          — needs OPENROUTER_API_KEY
+  lmstudio     LM Studio (local)
+  openai-compat  Any OpenAI-compatible URL — set --base-url
+
+Examples:
+  kurt think "why is my docker compose failing?"
+  KURT_PROVIDER=groq kurt think "explain git rebase"
+  kurt think --provider anthropic "review my last command"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if cwd == "" {
 				cwd, _ = os.Getwd()
 			}
 
-			mkCtx := func() think.Context {
+			// Resolve provider config: flag > env > config file > default
+			cfg, _, _ := config.Load()
+			providerName := firstOf(provider, os.Getenv("KURT_PROVIDER"), cfg.Think.Provider, "ollama")
+			resolvedModel := firstOf(model, os.Getenv("KURT_MODEL"), cfg.Think.Model)
+			resolvedBaseURL := firstOf(baseURL, os.Getenv("KURT_BASE_URL"), cfg.Think.BaseURL)
+			resolvedHost := firstOf(host, cfg.Think.Host)
+
+			p, err := think.New(think.ProviderConfig{
+				Name:      providerName,
+				Model:     resolvedModel,
+				BaseURL:   resolvedBaseURL,
+				Host:      resolvedHost,
+				MaxTokens: maxTokens,
+			})
+			if err != nil {
+				return fmt.Errorf("provider: %w", err)
+			}
+
+			// If a session is specified, use it for history
+			if sessionID != "" {
+				return runThinkWithSession(p, sessionID, strings.TrimSpace(strings.Join(args, " ")))
+			}
+
+			buildCtx := func() think.Context {
 				ctx := think.Context{CWD: cwd}
 				if includeLast {
 					ctx.Last = think.CollectLastFromEnv()
@@ -34,25 +84,27 @@ func thinkCmd() *cobra.Command {
 				if includeGit {
 					ctx.Git = think.CollectGit(cwd)
 				}
+				if includeFailures {
+					ctx.Failures = think.CollectFailures(8)
+				}
+				if includeGitLog {
+					ctx.GitLog = think.CollectGitLog(cwd, 10)
+				}
+				if includeEnv {
+					ctx.Env = think.CollectEnv()
+				}
+				ctx.ProjectType = think.CollectProjectType(cwd)
 				return ctx
 			}
 
-			client := think.OllamaClient{Host: host, Model: model}
-
-			// If a question is provided as args, do one-shot.
 			q := strings.TrimSpace(strings.Join(args, " "))
 			if q != "" {
-				ans, err := client.Think(mkCtx(), q)
-				if err != nil {
-					return err
-				}
-				fmt.Println(ans)
-				return nil
+				return p.ThinkStream(buildCtx(), q, os.Stdout)
 			}
 
-			// Otherwise, run an interactive loop until Ctrl-C.
+			// Interactive loop
 			scanner := bufio.NewScanner(os.Stdin)
-			fmt.Fprintln(os.Stderr, "kurt think (Ctrl-C to exit)")
+			fmt.Fprintf(os.Stderr, "kurt think [%s] — Ctrl-C to exit\n", providerName)
 			for {
 				fmt.Fprint(os.Stderr, "kurt> ")
 				if !scanner.Scan() {
@@ -65,26 +117,103 @@ func thinkCmd() *cobra.Command {
 				if line == "/exit" || line == "/quit" {
 					break
 				}
-				ans, err := client.Think(mkCtx(), line)
-				if err != nil {
+				if err := p.ThinkStream(buildCtx(), line, os.Stdout); err != nil {
 					fmt.Fprintln(os.Stderr, "error:", err)
-					continue
 				}
-				fmt.Println(ans)
 			}
 			return nil
 		},
 	}
 
-	c.Flags().StringVar(&host, "host", getenvDefault("KURT_OLLAMA_HOST", "http://127.0.0.1:11434"), "Ollama host")
-	c.Flags().StringVar(&model, "model", getenvDefault("KURT_OLLAMA_MODEL", "qwen2.5:7b-instruct"), "Ollama model")
-	c.Flags().BoolVar(&includeLast, "last", true, "Include last command info (from zsh hook env vars)")
-	c.Flags().BoolVar(&includeGit, "git", true, "Include git status/branch if in a repo")
+	c.Flags().StringVar(&provider, "provider", "", "LLM provider (ollama/openai/anthropic/groq/together/openrouter/lmstudio/openai-compat)")
+	c.Flags().StringVar(&model, "model", "", "Model name (overrides provider default)")
+	c.Flags().StringVar(&baseURL, "base-url", "", "API base URL (for openai-compat providers)")
+	c.Flags().StringVar(&host, "host", "", "Ollama host (ollama provider only)")
+	c.Flags().BoolVar(&includeLast, "last", true, "Include last command context")
+	c.Flags().BoolVar(&includeGit, "git", true, "Include git branch/dirty status")
+	c.Flags().BoolVar(&includeFailures, "failures", true, "Include recent failure history")
+	c.Flags().BoolVar(&includeGitLog, "git-log", true, "Include recent git commits")
+	c.Flags().BoolVar(&includeEnv, "env", true, "Include relevant env vars")
 	c.Flags().StringVar(&cwd, "cwd", "", "Working directory context (defaults to current)")
+	c.Flags().IntVar(&maxTokens, "max-tokens", 0, "Max response tokens (0 = provider default)")
+	c.Flags().StringVar(&sessionID, "session", "", "Continue a named session (keeps conversation history)")
 	return c
 }
 
-func getenvDefault(k, def string) string {
+// runThinkWithSession loads session history, sends the question, appends both turns.
+func runThinkWithSession(p think.Provider, sessionID, question string) error {
+	meta, err := session.Load(sessionID)
+	if err != nil {
+		return fmt.Errorf("session %q: %w", sessionID, err)
+	}
+
+	history, err := session.History(meta.ID)
+	if err != nil {
+		return err
+	}
+
+	msgs := make([]think.ChatMsg, 0, len(history)+1)
+	for _, h := range history {
+		msgs = append(msgs, think.ChatMsg{Role: h.Role, Content: h.Content})
+	}
+
+	if question == "" {
+		// Interactive mode with session history
+		scanner := bufio.NewScanner(os.Stdin)
+		fmt.Fprintf(os.Stderr, "kurt think [session: %s] — Ctrl-C to exit\n", meta.ID)
+		for {
+			fmt.Fprint(os.Stderr, "kurt> ")
+			if !scanner.Scan() {
+				break
+			}
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" {
+				continue
+			}
+			if line == "/exit" || line == "/quit" {
+				break
+			}
+			msgs = append(msgs, think.ChatMsg{Role: "user", Content: line})
+			_ = session.Append(meta.ID, session.Message{Role: "user", Content: line})
+
+			var buf bytes.Buffer
+			if err := p.ChatStream(msgs, io.MultiWriter(os.Stdout, &buf)); err != nil {
+				fmt.Fprintln(os.Stderr, "error:", err)
+				msgs = msgs[:len(msgs)-1]
+				continue
+			}
+			reply := strings.TrimSpace(buf.String())
+			msgs = append(msgs, think.ChatMsg{Role: "assistant", Content: reply})
+			_ = session.Append(meta.ID, session.Message{Role: "assistant", Content: reply})
+		}
+		return nil
+	}
+
+	// Single-shot with session context
+	msgs = append(msgs, think.ChatMsg{Role: "user", Content: question})
+	_ = session.Append(meta.ID, session.Message{Role: "user", Content: question})
+
+	var buf bytes.Buffer
+	if err := p.ChatStream(msgs, io.MultiWriter(os.Stdout, &buf)); err != nil {
+		return err
+	}
+	reply := strings.TrimSpace(buf.String())
+	_ = session.Append(meta.ID, session.Message{Role: "assistant", Content: reply})
+	return nil
+}
+
+// firstOf returns the first non-empty string from the list.
+func firstOf(vals ...string) string {
+	for _, v := range vals {
+		v = strings.TrimSpace(v)
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func envDefault(k, def string) string {
 	v := strings.TrimSpace(os.Getenv(k))
 	if v == "" {
 		return def

@@ -1,9 +1,20 @@
 package cmd
 
 import (
+	"os"
+	"strings"
+
 	"kurt_v1/internal/config"
 	"kurt_v1/internal/prompt"
 )
+
+// getenvDefault returns the env var value, or def if the var is unset or whitespace-only.
+func getenvDefault(key, def string) string {
+	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
+		return v
+	}
+	return def
+}
 
 func loadConfigView() (prompt.ConfigView, string, error) {
 	cfg, path, err := config.Load()
@@ -12,7 +23,7 @@ func loadConfigView() (prompt.ConfigView, string, error) {
 	}
 	cv := prompt.ConfigView{
 		Style:   cfg.Style,
-		TwoLine: cfg.Prompt.TwoLine,
+		TwoLine: cfg.Prompt.TwoLine == nil || *cfg.Prompt.TwoLine,
 		Order:   cfg.Modules.Order,
 
 		GitTTLms: cfg.Perf.GitTTLms,
@@ -35,6 +46,26 @@ func loadConfigView() (prompt.ConfigView, string, error) {
 		EnableGit:      cfg.Module.Git.Enabled != nil && *cfg.Module.Git.Enabled,
 		EnableDuration: cfg.Module.Duration.Enabled != nil && *cfg.Module.Duration.Enabled,
 		EnableExit:     cfg.Module.Exit.Enabled != nil && *cfg.Module.Exit.Enabled,
+		EnableGpu:      cfg.Module.Gpu.Enabled != nil && *cfg.Module.Gpu.Enabled,
+		FgGpu:          derefInt(cfg.Module.Gpu.Color, 81),
+		GpuTTLms:       derefInt64(cfg.Module.Gpu.TTLms, 2000),
+		EnableVenv:    cfg.Module.Venv.Enabled != nil && *cfg.Module.Venv.Enabled,
+		EnableConda:   cfg.Module.Conda.Enabled != nil && *cfg.Module.Conda.Enabled,
+		EnableNode:    cfg.Module.Node.Enabled != nil && *cfg.Module.Node.Enabled,
+		EnableKube:    cfg.Module.Kube.Enabled != nil && *cfg.Module.Kube.Enabled,
+		EnableBattery: cfg.Module.Battery.Enabled != nil && *cfg.Module.Battery.Enabled,
+		EnablePython:  cfg.Module.Python.Enabled != nil && *cfg.Module.Python.Enabled,
+		EnableCloud:   cfg.Module.Cloud.Enabled != nil && *cfg.Module.Cloud.Enabled,
+		EnableTime:    cfg.Module.Time.Enabled != nil && *cfg.Module.Time.Enabled,
+		FgVenv:        derefInt(nil, 226),
+		FgConda:       derefInt(nil, 40),
+		FgNode:        derefInt(nil, 71),
+		FgKube:        derefInt(nil, 33),
+		FgBattery:     derefInt(nil, 220),
+		FgPython:      derefInt(nil, 34),
+		FgCloud:       derefInt(nil, 208),
+		FgTime:        derefInt(nil, 245),
+		TimeFormat:    cfg.Module.Time.Format,
 
 		DurationMinMs: 500,
 		Powerline: prompt.PowerlinePalette{

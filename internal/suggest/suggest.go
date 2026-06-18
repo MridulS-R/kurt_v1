@@ -3,11 +3,14 @@ package suggest
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"kurt_v1/internal/history"
 )
 
 type Args struct {
@@ -29,9 +32,14 @@ func Suggest(a Args) (string, error) {
 	buf := a.Buffer
 	cwd := a.CWD
 
-	// If buffer is empty, we don't autosuggest anything by default.
 	if strings.TrimSpace(buf) == "" {
 		return heuristicEmpty(cwd), nil
+	}
+
+	// Check failure history first — if this exact command has failed before,
+	// show a warning instead of a completion hint.
+	if hint := failureHint(buf); hint != "" {
+		return hint, nil
 	}
 
 	// 1) History prefix match
@@ -40,8 +48,64 @@ func Suggest(a Args) (string, error) {
 		return remainder(buf, hit), nil
 	}
 
-	// 2) Heuristics (if buffer is short)
+	// 2) Heuristics
 	return heuristicPrefix(buf, cwd), nil
+}
+
+// failureHint returns a warning string if the buffer matches a previously-failed command.
+// Only fires when the user has finished typing a word (buffer ends with space),
+// or the buffer is an exact command match — never on a partial word being typed.
+func failureHint(buf string) string {
+	trimmed := strings.TrimSpace(buf)
+	if trimmed == "" {
+		return ""
+	}
+
+	endsWithSpace := len(buf) > 0 && buf[len(buf)-1] == ' '
+	if !endsWithSpace {
+		// Still typing the last word — only warn for an exact match so we
+		// don't flicker on every character (e.g. don't hint on "docker comp").
+		hits, err := history.Lookup(trimmed, 5)
+		if err != nil || len(hits) == 0 {
+			return ""
+		}
+		// Only an exact match qualifies when mid-word.
+		exactMatch := false
+		for _, h := range hits {
+			if strings.EqualFold(strings.TrimSpace(h.Cmd), trimmed) {
+				exactMatch = true
+				break
+			}
+		}
+		if !exactMatch {
+			return ""
+		}
+	}
+
+	hits, err := history.Lookup(trimmed, 5)
+	if err != nil || len(hits) == 0 {
+		return ""
+	}
+
+	last := hits[0]
+	age := time.Since(last.At)
+	var ageStr string
+	switch {
+	case age < time.Minute:
+		ageStr = "just now"
+	case age < time.Hour:
+		ageStr = fmt.Sprintf("%dm ago", int(age.Minutes()))
+	case age < 24*time.Hour:
+		ageStr = fmt.Sprintf("%dh ago", int(age.Hours()))
+	default:
+		ageStr = fmt.Sprintf("%dd ago", int(age.Hours()/24))
+	}
+
+	count := len(hits)
+	if count == 1 {
+		return fmt.Sprintf("  ← failed %s (exit %d)", ageStr, last.ExitCode)
+	}
+	return fmt.Sprintf("  ← failed %dx, last %s", count, ageStr)
 }
 
 func remainder(prefix, full string) string {

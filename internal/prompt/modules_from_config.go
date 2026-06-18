@@ -13,6 +13,15 @@ func modulesFromConfig(cfg ConfigView) []modules.Module {
 		"git":      modules.GitModule{},
 		"duration": modules.DurationModule{},
 		"exit":     modules.ExitModule{},
+		"gpu":      modules.GpuModule{},
+		"venv":     modules.VenvModule{},
+		"conda":    modules.CondaModule{},
+		"node":     modules.NodeModule{},
+		"kube":     modules.KubeModule{},
+		"battery":  modules.BatteryModule{},
+		"python":   modules.PythonModule{},
+		"cloud":    modules.CloudModule{},
+		"time":     modules.TimeModule{},
 	}
 
 	order := cfg.Order
